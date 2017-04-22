@@ -1,0 +1,7 @@
+@font-face {
+  font-family: 'Circular Bold';
+  src: url("lineto-circular-bold.eot");
+  src: url("lineto-circular-bold.eot?#iefix") format("embedded-opentype"), url("lineto-circular-bold.ttf") format("truetype"), url("lineto-circular-bold.woff") format("woff"), url("lineto-circular-bold.svg#CircularBold") format("svg");
+  font-style: normal;
+  font-weight: normal;
+}

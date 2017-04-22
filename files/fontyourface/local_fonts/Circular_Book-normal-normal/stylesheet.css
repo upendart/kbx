@@ -1,0 +1,7 @@
+@font-face {
+  font-family: 'Circular Book';
+  src: url("lineto-circular-book.eot");
+  src: url("lineto-circular-book.eot?#iefix") format("embedded-opentype"), url("lineto-circular-book.ttf") format("truetype"), url("lineto-circular-book.woff") format("woff"), url("lineto-circular-book.svg#CircularBook") format("svg");
+  font-style: normal;
+  font-weight: normal;
+}

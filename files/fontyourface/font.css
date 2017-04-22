@@ -1,0 +1,58 @@
+*, body { 
+	font-family: 'Helvetica Neue Roman'; font-style: normal; font-weight: normal; 
+}
+
+h2, h2 *,
+h3, h3 *,
+h3.with-orange-text,
+h3.with-blue-text.basic-page-title, h3.with-blue-text.basic-page-title *,
+h4, h4 *,
+h4.with-blue-text, h4.with-blue-text *,
+.region.region-primary-nav-menus h3
+.view-product-touts-view h4.with-blue-text { 
+	font-family: 'Circular Bold';
+	font-style: normal;
+	font-weight: normal; 
+}
+
+h1, h1 *,
+h3.with-orange-text *,
+h4.with-orange-text, h4.with-orange-text *,
+h3.with-blue-text, h3.with-blue-text *,
+#page section.what-we-stand-for .container h2.block-title,
+#node-segment-landing-page-full-group-s2c1 h3.with-blue-text small,
+#node-segment-landing-page-full-group-titles h2 small,
+.region.region-primary-nav-menus *,
+.easy-breadcrumb a, .easy-breadcrumb span {
+	font-family: 'Circular Book';
+	font-style: normal;
+	font-weight: normal; 
+}
+
+
+.panel-heading h3.with-orange-text,
+#node-segment-landing-page-full-group-s2c1 h3.with-blue-text,
+#node-segment-landing-page-full-group-s4c1 h3.with-blue-text,
+#node-segment-landing-page-full-group-segment-masthead-r2 div h3.with-orange-text,
+#node-segment-landing-page-full-group-segment-masthead-r2 div h3.with-orange-text * {
+	font-family: 'Circular Bold' !important;
+	font-style: normal !important;
+	font-weight: normal !important; 
+}
+
+
+h2 small, h2 small *,
+h2 span,
+h3 font,
+h3 span,
+h4 span,
+h4.with-blue-text small, h4.with-blue-text small * {
+	font-family: 'Circular Book' !important;
+	font-style: normal !important;
+	font-weight: normal !important; 
+}
+
+
+#page section.carousel .container .owl-carousel-container .owl-wrapper-outer .panel .panel-body p { 
+	font-family: 'Helvetica Neue Roman'; font-style: normal; font-weight: normal; 
+}

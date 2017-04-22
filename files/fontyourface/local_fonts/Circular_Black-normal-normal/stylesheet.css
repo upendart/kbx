@@ -1,0 +1,7 @@
+@font-face {
+  font-family: 'Circular Black';
+  src: url("lineto-circular-black.eot");
+  src: url("lineto-circular-black.eot?#iefix") format("embedded-opentype"), url("lineto-circular-black.ttf") format("truetype"), url("lineto-circular-black.woff") format("woff"), url("lineto-circular-black.svg#CircularBlack") format("svg");
+  font-style: normal;
+  font-weight: normal;
+}
