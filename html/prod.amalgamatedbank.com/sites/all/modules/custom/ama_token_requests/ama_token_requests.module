@@ -1,0 +1,1290 @@
+<?php
+/**
+ * 2017.3.17, Ye Wang
+ * Clean up code; add comments;
+ *
+ * Request Manager form:
+ * - complete = 0;
+ * - Editable: Token Type;
+ * - View: 
+ *		last 4-digit of serial number; 
+ * 		last name (2017.3.29);
+ * - Set completed to 1 after submission;
+ *
+ * Import: 
+ * - exist request: update when incompleted;
+ * - non-exist request: add; email;
+ * - track system log;
+ * - Delete uploaded CSV after import process; 
+ *
+ * Export:
+ * - last 4-digit of serial number;
+ * 
+ * Job scheduler:
+ * - ama_token_requests_cron_job_scheduler_info(): sent job name "ama_token_requests_job";
+ * - ama_token_requests_job_send_reminder(): implements reminder selection and sent out emails;
+ * - weekly_task_admin_form($form, &$form_state): form interface to set up reminder date/time;
+ * - weekly_task_admin_form_submit(&$form, &$form_state): API to update/save cron call;
+ *
+ * Email Reminder:
+ * - only incompleted requests; 
+ * - same email template;
+ * - add Reminder to subject line; 
+ * - SendGrid
+ */
+
+
+/*
+ * Implements hook_permission
+ */
+
+function ama_token_requests_permission() {
+  $permissions = array(
+    'administer ama_admin' => array(
+      'title' => t('Administer Amalgamated '),
+      'restrict access' => TRUE,
+    ),    
+    'administer ama_token_requests' => array(
+      'title' => t('Administer Amalgamated Token Requests'),
+      'restrict access' => TRUE,
+    ),
+  );
+  return $permissions;
+}
+
+
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+//  Hooks and Setup Functions
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+
+  //-------------------------------------------------------------------------------------------|
+  //  Implementation of hook_menu, this provides a front-end for the importer
+  //-------------------------------------------------------------------------------------------|
+    function ama_token_requests_menu() {
+      $items['admin/ama'] = array(
+        'title' => 'Amalgamated',
+        'description' => 'Administer Amalgamated',
+        'weight' => 20,
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer ama_admin'),
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system')
+      );
+
+      $items['admin/ama/tokens'] = array(
+        'title' => 'Security Tokens',
+        'description' => '',
+        'page callback' => 'system_admin_menu_block_page',        
+        'access arguments' => array('administer ama_token_requests'),
+        'file' => 'system.admin.inc',
+        'file path' => drupal_get_path('module', 'system'),
+      );     
+
+      $items['admin/ama/tokens/import'] = array(
+        'title' => 'Import',
+        'description' => '',
+        'access arguments' => array('administer ama_token_requests'),
+        'page callback' => 'ama_token_requests_import_pagecallback',
+        'weight' => 1,        
+      );      
+
+      $items['admin/ama/tokens/export'] = array(
+        'title' => 'Export',
+        'description' => '',
+        'access arguments' => array('administer ama_token_requests'),
+        'page callback' => 'ama_token_requests_export_pagecallback',
+        'weight' => 2,        
+      );
+
+      $items['admin/ama/tokens/email'] = array(
+        'title' => 'Email Template',
+        'description' => '',
+        'access arguments' => array('administer ama_token_requests'),
+        'page callback' => 'ama_token_requests_email_template_pagecallback',
+        'weight' => 3,        
+      );
+
+      $items['admin/ama/tokens/reminder'] = array(
+        'title' => 'Email Reminder',
+        'description' => '',
+        'access arguments' => array('administer ama_token_requests'),
+        'page callback' => 'ama_token_requests_email_reminder_pagecallback',
+        'weight' => 4,
+      );      
+
+      return $items;
+}
+
+function ama_token_requests_import_pagecallback() {
+  #$module_path = drupal_get_path('module', 'ama_token_requests');
+  $form = drupal_get_form('ama_token_requests_import_form');
+  $output = drupal_render($form);
+  return $output;
+ }
+
+function ama_token_requests_export_pagecallback() {
+  $output = views_embed_view('token_request_export', 'block');
+  $index = stripos($output, "odd views-row-first");
+
+  if ($index > 0) {
+    $form = drupal_get_form('ama_token_requests_export_form');
+    $output .= drupal_render($form);
+  } 
+	
+  return $output;
+}  
+
+function ama_token_requests_email_template_pagecallback() {
+  $form = drupal_get_form('ama_token_requests_email_template_form');
+  $output = drupal_render($form);
+  return $output;
+}
+
+function ama_token_requests_email_reminder_pagecallback() {
+  $form = drupal_get_form('weekly_task_admin_form');
+  $output = drupal_render($form);
+  return $output;
+}
+
+function ama_token_requests_import_form() {
+  $form['#attached']['css'][] = array(
+    'data' => '.form-type-file { margin-top: 15px; }',
+    'type' => 'inline',
+  );
+
+  $form['#attributes'] = array(
+    'enctype' => 'multipart/form-data'
+  );
+
+  $form['csvfile'] = array( 
+    '#title' => t('Token Request File'),
+    '#type'  => 'file',
+    '#description' => ($max_size = parse_size(ini_get('upload_max_filesize'))) ? t('Allowed extensions: csv', array('!max_size' => format_size($max_size))) : '',
+  );
+	$sampleCSV = file_create_url("public://ama_token_request_sampleImport.csv");
+	$form['csvfile']['#description'] .= "<br/>Download a <a href=\"{$sampleCSV}\">sample CSV</a><br />"; 
+
+  $form['purge'] = array(
+    '#type' =>'checkbox', 
+    '#title' => t('Purge existing data'),
+    '#description' => t('Warning: checking this box will permanently delete all Tokens Requests from the database before performing the current import!'),      
+  );
+
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Import'),
+    '#attributes' => array('style' => 'margin-bottom:15px'),
+	'#prefix' => '<div style="color:#BB2222; font-weight:bold; padding: 0.5em 0;">Note! Emails are automatically sent after file upload!</div>'
+  );
+
+  $form['#validate'] = array(
+    'ama_token_requests_validate_fileupload',
+    'ama_token_requests_form_validate',
+  );
+
+  return $form;
+
+  }
+
+  function ama_token_requests_export_form() {
+  
+    $form['#attached']['css'][] = array(
+      'data' => '.view-token-request-export th {white-space: nowrap; }section.with-white-background>.containe {max-width:95%!important;}',
+      'type' => 'inline',
+    );    
+
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Export'),
+      '#attributes' => array('style' => 'margin-bottom:15px'),      
+    );
+
+    $form['#action'] = url('admin/ama/tokens/export/csv');
+
+    return $form ;
+  }
+
+  function ama_token_requests_send_emails_form() {
+  
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Send Emails'),
+    );
+
+
+    return $form ;
+  }  
+
+  function ama_token_requests_email_template_form() {
+  
+    $defaults = array(
+      'value' => '',
+      'format' => 'full_html',//filter_default_format(),
+    );
+
+    $email_template = variable_get('token_request_email_template', $defaults);
+
+    $form['email_template'] = array(
+      '#type' => 'text_format',
+      '#title' => t('Email Template'),
+      '#default_value' => $email_template['value'],
+      '#format' => $email_template['format'],
+    );
+
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+      '#attributes' => array('style' => 'margin-bottom:15px'),      
+    );
+
+    return $form ;
+  }
+
+  function ama_token_requests_validate_fileupload(&$form, &$form_state) {
+    $validators = array(
+      'file_validate_extensions' => array( 'csv' ),
+    );
+    
+    if ( $file = file_save_upload('csvfile', $validators, "private://ama_token_requests/", FILE_EXISTS_REPLACE) ) {
+      $form_state['values']['csvupload'] = $file->destination;       
+    }
+    else {
+      form_set_error('ama_token_requests', t('Unable to copy upload file to !dest', array('!dest' => $destination)));
+    }      
+  }
+
+
+  function ama_token_requests_form_validate(&$form, &$form_state) {
+    if ( isset( $form_state['values']['csvupload'] ) ) {
+      if ( $handle = fopen($form_state['values']['csvupload'], 'r') ) {
+        $line_count = 1 ;
+        $first = TRUE ;
+        if ( $line = fgetcsv($handle, 4096) ) {
+  
+          //-------------------------------------------------------------------------------------------|
+          //  This is where you can validate aspects of the file itself, like the number of columns
+          //-------------------------------------------------------------------------------------------|
+            if(count($line) != 5){
+              form_set_error('csvfile', t('This file has the incorrect number of columns. Expecting 3'));
+            }
+          //-------------------------------------------------------------------------------------------|
+          //  End validating aspects of the CSV file
+          //-------------------------------------------------------------------------------------------|
+          
+          
+          
+        }
+        fclose($handle);
+      }
+      else {
+        form_set_error('csvfile', t('Unable to read uploaded file !filepath', array('!filepath' => $form_state['values']['csvupload'])));
+      }
+    }
+  }
+
+
+/*************************************************************
+	2017.3.20, Ye Wang
+	- delete CSV after import;
+ *************************************************************/
+  function ama_token_requests_import_form_submit(&$form, &$form_state) {
+    $batch = array(
+      'title' => t('Importing Token Requests...'),
+      'operations' => array(),
+      'init_message' => t('Importing Token Requests...'),
+      'progress_message' => t('Processed @current out of @total.'),
+      'error_message' => t('An error occurred during processing'),
+      'finished' => 'ama_token_requests_import_finished',
+    ) ;
+    if ( isset( $form_state['values']['csvupload'] ) ) {
+      if ( $handle = fopen($form_state['values']['csvupload'], 'r') ) {
+        if ($form_state['values']['purge']) {
+          _ama_token_purge_data();
+        }
+
+        $batch['operations'][] = array('_ama_token_requests_remember_filename', array( $form_state['values']['csvupload'] ) ) ;
+        $line_count = 1 ;
+        $first = TRUE ;
+        $line = fgetcsv($handle, 4096);
+        while ( $line = fgetcsv($handle, 4096) ) {
+          /**
+           * we use base64_encode to ensure we don't overload the batch
+           * processor by stuffing complex objects into it
+           */
+          print_r(array(array_map('base64_encode', $line)));
+          $batch['operations'][] = array('_ama_token_requests_import_line', array(array_map('base64_encode', $line)));        
+        }
+        fclose($handle);
+		
+		// 2017.3.20, Ye Wang - delete uploaded CSV after import;
+		unlink($form_state['values']['csvupload']); 
+      } // we caught this in ama_token_requests_form_validate()
+    } // we caught this in ama_token_requests_form_validate()
+    batch_set($batch);
+  }
+
+  function ama_token_requests_email_template_form_submit(&$form, &$form_state) {    
+    $values = array(
+      'value' => isset($form_state['values']['email_template']['value']) ? $form_state['values']['email_template']['value'] : '',
+      'format' => 'full_html',
+    );    
+    variable_set('token_request_email_template', $values);    
+    //drupal_set_message('The Token Request email template has been saved.', 'status');
+ 	drupal_set_message('Thank you for updating your access preferences. We will contact you shortly to provision access to your active users.', 'status');
+ }  
+
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+//  End Form builder, validate, and submit functions for the importer form
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+
+
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+//  Batch API helpers
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+  function ama_token_requests_import_finished($success, $results, $operations) {
+    if ( !empty($results['failed_rows']) ) {
+      $dir  = file_directory_path() . '/ama_token_requests/' ;
+      if ( file_check_directory( $dir, FILE_CREATE_DIRECTORY ) ) {
+        $csv_filename = 'failed_rows-'. basename($results['uploaded_filename']); // we validated extension on upload
+        $csv_filepath = $dir .'/'. $csv_filename;
+        $targs = array(
+          '!csv_url' => l(check_plain($csv_filename), $csv_filepath),
+          '%csv_filename' => $csv_filename,
+          '%csv_filepath' => $csv_filepath,
+        ) ;
+        if ( $handle = fopen($csv_filepath, 'w+') ) {
+          foreach( $results['failed_rows'] as $failed_row ) {
+            fputcsv($handle, $failed_row);
+          }
+          fclose($handle);
+          drupal_set_message(t('Some rows failed to import. You may download a CSV of these rows: !csv_url', $targs), 'error');
+        }
+        else {
+          drupal_set_message(t('Some rows failed to import, but unable to write error CSV to %csv_filepath', $targs), 'error');
+        } 
+	
+      }
+      else {
+        drupal_set_message(t('Some rows failed to import, but unable to create directory for error CSV at %csv_directory', $targs), 'error');
+      }
+    }
+	 
+	return t('The CSV import has completed.');
+  }
+  
+  
+  function _ama_token_requests_remember_filename($filename, &$context) {
+    $context['results']['uploaded_filename'] = $filename;
+  }
+
+  function _ama_token_purge_data() {
+
+    $result= db_query("SELECT nid FROM {node} AS n WHERE n.type = 'token_request'");
+
+    foreach ($result as $record) {
+      node_delete($record->nid);
+    }
+
+    drupal_set_message("All Token Requests were purged from the database.");      
+  }
+
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+//  End batch API helpers
+//-------------------------------------------------------------------------------------------|
+//-------------------------------------------------------------------------------------------|
+
+//-------------------------------------------------------------------------------------------|
+//  The important part, this is where we "do something" with an individual CSV line
+//-------------------------------------------------------------------------------------------|
+/* 2017.3.13, Ye Wang = $session_nid not in use?! throw PHP warnings
+  function _ama_token_requests_import_line($line, $session_nid, &$context) {
+*/
+  function _ama_token_requests_import_line($line, &$context) {
+	// 2017.3.23, Ye Wang: missing declaration;
+	if (!isset($context['results']['rows_imported'])) {
+		$context['results']['rows_imported'] = 0;
+	}
+    $context['results']['rows_imported']++;
+    $line = $cleaned_line = array_map('base64_decode', $line);
+    
+    
+    //-------------------------------------------------------------------------------------------|
+    //  Give feedback to the importer about which operation we're preforming
+    //-------------------------------------------------------------------------------------------|
+      //Show the row count by default
+      $context['message'] = t('Importing row !c', array( '!c' => $context['results']['rows_imported'] ));
+    
+      //Or, Provide some feedback about the row currently being processed
+      $context['message'] = t('Importing %title', array('%title' => $line[0]));
+    //-------------------------------------------------------------------------------------------|
+    //  End giving feedback to the importer
+    //-------------------------------------------------------------------------------------------|
+  
+    //-------------------------------------------------------------------------------------------|
+    //  This is where you would convert the line of the CSV file into a new object, be it a node, user, etc.
+    //-------------------------------------------------------------------------------------------|
+      _ama_token_requests_save_request($line);
+      
+      drupal_set_message("Imported Token Request for {$line[0]} {$line[1]}");
+  
+    //-------------------------------------------------------------------------------------------|
+    //  End converting the line to a drupal object
+    //-------------------------------------------------------------------------------------------|
+    
+    //-------------------------------------------------------------------------------------------|
+    //  You can capture and report on failed lines by doing something like this
+    //-------------------------------------------------------------------------------------------|
+      if ( $line[1] == 'ROW' && $line[2] == 'FAILS' ) {
+        $context['results']['failed_rows'][] = $line ;
+      }
+    //-------------------------------------------------------------------------------------------|
+    //  End capturing and reporting on failed lines
+    //-------------------------------------------------------------------------------------------|
+  }
+
+//-------------------------------------------------------------------------------------------|
+//  End converting an individual line of the CSV into something new
+//-------------------------------------------------------------------------------------------|
+
+/**
+ * Implements hook_js_alter().
+ */
+function ama_token_requests_js_alter(&$javascript) {
+  global $user;
+
+  if (!in_array('administrator', $user->roles)) {
+    unset($javascript['misc/tabledrag.js']);
+  }
+}
+
+
+
+/*************************************************************
+	2017.3.17, Ye Wang
+	Editable:
+		- incompleted request;
+		- Token Type;
+	View:
+		- last 4-digit serial number;
+ *************************************************************/
+/* 2017.3.17, Ye Wang - Cedric's code
+function ama_token_requests_form_alter(&$form, &$form_state, $form_id) {
+
+  global $user;  
+
+  switch ($form_id) {
+    case 'token_request_node_form':
+      if (in_array('anonymous user', $user->roles)) {
+        $form['field_company_id']['#access'] = FALSE;
+      }
+
+      if (!in_array('administrator', $user->roles)) {
+        unset($form['actions']['preview']);
+        unset($form['actions']['delete']);
+        unset($form['field_token_request']['und']['add_more']);
+
+        $form['title']['#access'] = FALSE;
+        $form['field_company_id']['#disabled'] = TRUE;
+
+        foreach($form['field_token_request']['und'] as $key => $token_request) {
+          if (is_numeric($key)  && is_array($token_request)) {
+            $form['field_token_request']['und'][$key]['field_serial_number']['#access'] = FALSE;        
+            $form['field_token_request']['und'][$key]['field_masked_serial']['#disabled'] = TRUE;        
+          }
+        }
+
+        //$form['#after_build'][] = 'ama_tofu_after_build';  
+
+        $i = 0;
+        foreach ($form['field_token_request']['und'] as $request_fields) {
+          unset($form['field_token_request']['und'][$i]['remove_button']);
+          $i++;
+        }            
+      }
+
+      break;
+  }
+}
+*/ 
+
+function ama_token_requests_form_alter(&$form, &$form_state, $form_id) { 
+	global $user;  
+
+  	switch ($form_id) {
+    	case 'token_request_node_form': 
+			$toEdit = 0;
+		
+
+      	if (!in_array('administrator', $user->roles)) { 
+			$form['field_company_id']['#access'] = FALSE;
+	        $form['title']['#access'] = FALSE;
+	        $form['field_company_id']['#disabled'] = TRUE; 
+			/****************************************************
+				2017.3.17, Ye Wang
+				Edit: 
+					- Incompleted;
+					- Token Type;
+				View: 
+					- last 4-digit of Serial Number;
+					- last name;
+			*****************************************************/
+			$form['field_admin_email']['#access'] = FALSE; 
+			foreach ($form['field_token_request']['und'] as $key => $token_request) { 
+				//print "<pre>".var_export($key, true)."</pre>";
+				
+				//$fc = entity_load_single('field_collection_item', $fcid); 
+	     		if (is_numeric($key)  && is_array($token_request)) { 
+					$form['field_token_request']['und'][$key]['field_is_completed']['#access'] = FALSE; 
+					$form['field_token_request']['und'][$key]['field_first_name']['#access'] = FALSE;
+					$form['field_token_request']['und'][$key]['field_last_name']['#disabled'] = TRUE; 
+	            	$form['field_token_request']['und'][$key]['field_serial_number']['#access'] = TRUE; 
+					$form['field_token_request']['und'][$key]['field_serial_number']['#disabled'] = TRUE;
+					//$form['field_token_request']['und'][$key]['field_serial_number']['und'][0]['value']['#default_value'] = _ama_token_requests_format_serial($form['field_token_request']['und'][$key]['field_serial_number']['und'][0]['value']['#default_value']);	
+					//print "<pre>".var_export($form['field_token_request']['und'][$key]['field_serial_number']['und'][0]['value']['#default_value'], true)."</pre>"; 
+					//print "<pre>".var_export($form['field_token_request']['und'][$key]['field_token_type']['und']['#default_value'], true)."</pre>"; 
+					if (empty($form['field_token_request']['und'][$key]['field_token_type']['und']['#default_value'])) {
+						$toEdit = 1;
+					} else {
+						$form['field_token_request']['und'][$key]['field_token_type']['#disabled'] = TRUE;
+					} 
+				} 
+			} 	
+			drupal_add_js('
+				(function ($) {
+					$(document).ready(function () {  
+						$("form#token-request-node-form").each(function() {
+							$("div[class*=-field-serial-number-] input").attr("value", function() {
+								str = $(this).attr("value");
+								str = (str.length>4) ? str.substr(-4) : str;
+								 return "*****" + str;
+							});
+						});  
+					}); 
+				})(jQuery);', 'inline');
+ 
+			$i = 0;
+       	 	foreach ($form['field_token_request']['und'] as $request_fields) {
+          		unset($form['field_token_request']['und'][$i]['remove_button']);
+          		$i++;
+        	}          
+			unset($form['actions']['preview']);
+			unset($form['actions']['delete']);
+			unset($form['field_token_request']['und']['add_more']); 
+
+			// Remove main Submit button if all FC items have been completed
+			if (!$toEdit) {
+				unset($form['actions']['submit']);
+				//$form['actions']["submit"]['#attributes'] = array('disabled'=>"disabled");
+				//$form['actions']["submit"]['#prefix'] = "<p>*Above token requests have been completed and are closed.</p>";
+				$form['footer'] = array(
+					'#markup' => "<p class=\"notes\">Token requests have been completed and are closed.</p>",
+					'#weight' => 100,
+				);
+				$form['intro'] = array(
+					'#markup' => "<p class=\"notes\">Token requests have been completed and are closed.</p>",
+					'#weight' => 0,
+				);
+			};
+			$form['actions']["submit"]['#submit'][] = "_ama_token_requests_form_submit";
+      	}
+	
+      	break;
+  	}
+} 
+// Add custom message after token requests saved 
+function _ama_token_requests_form_submit($form, &$form_state) {
+	// Hide default Drupal message;
+	drupal_get_messages('status');
+	// Add Custom message;
+	$msg = "Thank you for updating your access preferences. We will contact you shortly to provision access to your active users.";
+	drupal_set_message($msg); 
+}
+/* 2017.3.24, Ye Wang
+function _ama_token_requests_format_serial($str) { 
+	$output = (strlen($str)>4) ? "*****". substr($str, -4) : $str;
+	return $output;
+}
+*/
+
+
+
+/*
+function ama_tofu_after_build($form, &$form_state) {
+  $js_path = libraries_get_path('maskedinput') . '/jquery.maskedinput.min.js';
+  drupal_add_js ($js_path);
+  return $form;
+}
+*/
+
+
+/* 2017.3.20, Ye Wang - Cedric code
+function _ama_token_requests_save_request($data) {  
+  // Lets make the variables more readable.
+  $first_name = encrypt($data[0], array('base64' => TRUE));
+  $last_name = encrypt($data[1], array('base64' => TRUE));
+  $serial_number = encrypt($data[2], array('base64' => TRUE));
+  $masked_serial_number = '#####' . substr($data[2], 5, 4);
+  $admin_email = encrypt($data[3], array('base64' => TRUE));
+  $company_id = encrypt($data[4], array('base64' => TRUE));
+
+  $first_name = $data[0];
+  $last_name = $data[1];
+  $serial_number = $data[2];
+  $masked_serial_number = '#####' . substr($data[2], 5, 4);
+  $admin_email = $data[3];
+  $company_id = $data[4];  
+
+  $nid = db_query("SELECT DISTINCT
+                    n.nid
+                    FROM {node} n " . 
+                      "INNER JOIN {field_data_field_company_id} s
+                        ON s.revision_id = n.vid
+                          AND s.entity_id = n.nid " .
+                    "WHERE field_company_id_value = :company_id",
+                    array(':company_id' => $company_id,
+          ))->fetchField();
+
+  if(!empty($nid)) {    
+    $node = node_load($nid);  
+  } else {
+    global $user;
+    $node = new StdClass();
+    $node->type = 'token_request'; # choose your type
+    $node->status = 1; # published
+    $node->title = "Token Request - " . $company_id;
+    $node->uid = $user->uid;
+    $node->language = 'und';
+    $node->field_company_id['und'][0]['value'] = $company_id;
+  }
+
+  $node->field_admin_email['und'][0]['email'] = $admin_email;
+
+  node_save($node);  
+
+  $fid = token_request_exists($company_id, $serial_number);
+
+  if ($fid) {
+    $token_request = entity_load('field_collection_item', array($fid));
+    $token_request[$fid]->field_first_name['und'][0]['value'] = $first_name;
+    $token_request[$fid]->field_last_name['und'][0]['value'] = $last_name;
+    $token_request[$fid]->save();
+  } else {
+    $token_request = entity_create('field_collection_item', array('field_name' => 'field_token_request'));
+    $token_request->setHostEntity('node', $node);
+    $token_request->field_serial_number['und'][0]['value'] = $serial_number;
+    $token_request->masked_serial_number['und'][0]['value'] = $masked_serial_number; 
+    $token_request->field_first_name['und'][0]['value'] = $first_name;
+    $token_request->field_last_name['und'][0]['value'] = $last_name;    
+    $token_request->save();    
+  }  
+}
+*/
+/*********************************************************
+	2017.3.20, Ye Wang
+	- Process each line of CSV;
+	- Validate Token Request existance by company + serial;
+	- Add a new Token Request node if company id doesn't exist;
+	- Update Token Request if incompleted;
+ *********************************************************/
+function _ama_token_requests_save_request($data) {  
+	// Read cells from CSV
+	$first_name = $data[0];
+	$last_name = $data[1];
+	$serial_number = $data[2]; 
+	$admin_email = $data[3];
+	$company_id = $data[4];   
+		
+ 	// check for nid; 
+	$nid = db_query("SELECT DISTINCT
+	                  n.nid
+	                  FROM {node} n " . 
+	                    "INNER JOIN {field_data_field_company_id} s
+	                      ON s.revision_id = n.vid
+	                        AND s.entity_id = n.nid " .
+	                  "WHERE field_company_id_value = :company_id",
+	                  array(':company_id' => encrypt($company_id, array('base64' => TRUE)),
+	        ))->fetchField();
+	
+	$newFC = 1;	
+	$fid = 0;
+	if(!empty($nid)) {
+		// Token node exists, check serial
+		$node = node_load($nid); 
+		// Check serial for FC item - encrypt company_id & serial_number;
+		$companyID = encrypt($company_id, array('base64' => TRUE));
+		$serialNum = encrypt($serial_number, array('base64' => TRUE));
+		$fid = token_request_exists($companyID, $serialNum); 
+		if ($fid) {
+			// FC item found, do NOT add new
+			$newFC = 0;	
+			// Check for complete status:
+		    $token_request = entity_load('field_collection_item', array($fid));
+		 	
+			if ($token_request[$fid]->field_is_completed['und'][0]['value'] == 0) { 
+				// Incomleted Token Request: 
+				// Update node:
+				$node->field_admin_email['und'][0]['email'] = $admin_email;
+				node_save($node); 			
+					
+				// Update FC item: 
+				$token_request[$fid]->field_first_name['und'][0]['value'] = $first_name;
+				$token_request[$fid]->field_last_name['und'][0]['value'] = $last_name; 
+				$token_request[$fid]->save(); 
+				watchdog('Token Request Import', 'Updated request detail', NULL, WATCHDOG_NOTICE, NULL);
+			} else {
+				// Completed, DO NOTHING;
+				watchdog('Token Request Import', 'Request already completed, no change', NULL, WATCHDOG_NOTICE, NULL);
+			}
+		} else {
+			// FC item not found, update node, add new FC item; 
+			$node->field_admin_email['und'][0]['email'] = $admin_email;
+			node_save($node); 
+			watchdog('Token Request Import', 'Update company (%email)', array('%email'=>$admin_email), WATCHDOG_NOTICE, NULL);
+		}
+	} else {
+		// Token node doesn't exist, create a new one:
+		global $user;
+		$node = new StdClass();
+		$node->type = 'token_request'; # choose your type
+		$node->status = 1; # published
+		$node->title = "Token Request - " . $company_id;
+		$node->uid = $user->uid;
+		$node->language = 'und';
+		$node->field_company_id['und'][0]['value'] = $company_id;
+	  	$node->field_admin_email['und'][0]['email'] = $admin_email;
+		node_save($node);  
+		watchdog('Token Request Import', 'Add new company (%email)', array('%email'=>$admin_email), WATCHDOG_NOTICE, NULL);
+	}
+ 	
+	// Add new FC item:
+  	if ($newFC) {
+		$token_request = entity_create('field_collection_item', array('field_name' => 'field_token_request'));
+		$token_request->setHostEntity('node', $node);
+		$token_request->field_serial_number['und'][0]['value'] = $serial_number;
+		$token_request->field_first_name['und'][0]['value'] = $first_name;
+		$token_request->field_last_name['und'][0]['value'] = $last_name;    
+		$token_request->save();  
+		watchdog('Token Request Import', 'Add new request<br/>', array('%link'=>$node->path['alias']), WATCHDOG_NOTICE, NULL);
+		// Email when new request added:
+		ama_token_requests_mail_send($node->field_admin_email['und'][0]['email'], $node->path['alias']);
+	}  
+}
+
+/* 2017.3.20, Ye Wang - Cedric's code
+function token_request_exists($company_id, $serial_number) {
+  $fid = db_query("
+          SELECT r.`field_token_request_value`
+          FROM `field_data_field_company_id` c
+          INNER JOIN field_data_field_token_request r ON r.`entity_id` = c.`entity_id`
+          INNER JOIN field_data_field_serial_number s ON s.`entity_id` = r.`field_token_request_value`
+          WHERE c.`field_company_id_value` = :company_id
+            AND s.`field_serial_number_value` = :serial_number
+          "
+          , array(":company_id" => $company_id,
+                  ":serial_number" => $serial_number,
+          ))
+          ->fetchColumn();   
+
+  return $fid;
+}
+*/
+/*********************************************************
+	2017.3.20, Ye Wang
+	- returns request id by company ID + serial number;
+	- returns completel status;
+	- input strings should be encrypted!
+ *********************************************************/
+function token_request_exists($company, $serial) {
+	$args = array(
+		':type'		=> 'token_request',
+		':fc_type' 	=> 'field_token_request',
+		':company' 	=> $company,
+		':serial' 	=> $serial,
+	);
+	$sql = "SELECT DISTINCT FCS.entity_id AS fcID
+			FROM {node} AS N INNER JOIN
+					{field_data_field_company_id} AS C ON (N.nid = C.entity_id
+															AND N.type = C.bundle) INNER JOIN
+					{field_data_field_token_request} AS FC ON (N.nid = FC.entity_id
+																AND N.type = FC.bundle) INNER JOIN
+					{field_data_field_serial_number} AS FCS ON (FC.field_token_request_value = FCS.entity_id
+																AND FCS.entity_type = 'field_collection_item'
+																AND FCS.bundle = :fc_type) 
+			WHERE N.type = :type
+				AND C.field_company_id_value = :company
+				AND FCS.field_serial_number_value = :serial
+	";
+	
+	$result = db_query($sql, $args)->fetchColumn(); 
+	
+	return $result;
+}
+
+/**
+ * Implements hook_insert().
+ */
+/*
+function ama_token_requests_insert($node) {
+    // Set the URL alias
+    if ($node->type == "token_request") {
+      //$node->path['alias'] = bin2hex(openssl_random_pseudo_bytes(16));
+    }
+}
+*/
+
+function ama_token_requests_node_presave($node) {
+  //drupal_set_message('made it here.');
+  if ($node->type == "token_request") {
+    $node->path['pathauto'] = 0;
+    //if ($node->is_new) {
+      $node->path['alias'] = bin2hex(openssl_random_pseudo_bytes(32));
+    //}  
+	
+	// 2017.3.17, Ye Wang - mark completed if Token Type selected
+	if (isset($node->field_token_request)) {
+		foreach (field_get_items('node', $node, 'field_token_request') as $cur) {
+			$fc = field_collection_field_get_entity($cur); 
+			$fc->field_is_completed['und'][0]['value'] = (isset($fc->field_token_type) && !empty($fc->field_token_type)) ? 1 : 0;
+		}
+	} 
+  }
+	/* 2017.3.17, Ye Wang: no email upon saving request
+  ama_token_requests_mail_send($node->field_admin_email['und'][0]['email'], $node->path['alias']);  
+	*/
+}  
+
+/**
+ * Sends an e-mail.
+ *
+ * 2017.3.17, Ye Wang - add reminder handler;
+ */
+function ama_token_requests_mail_send($admin_email, $link, $type='confirmation') {
+  global $base_url;
+  // All system mails need to specify the module and template key (mirrored from
+  // hook_mail()) that the message they want to send comes from.
+  $module = 'ama_token_requests';
+  $key = 'token_request_message';
+
+  // Specify 'to' and 'from' addresses.
+ // $to = "ye@nylontechnology.com"; // "cedricpriestley@gmail.com";//$admin_email;	
+ $to = $admin_email;
+  $from = 'informationsecurity@amalgamatedbank.com';
+
+  // "params" loads in additional context for email content completion in
+  // hook_mail(). In this case, we want to pass in the values the user entered
+  // into the form, which include the message body in $form_values['message'].
+  $email_template = variable_get('token_request_email_template', '');  
+  $message = $email_template['value'];
+  $message = str_replace('link_placeholder', $base_url . "/" . $link, $message);
+
+
+  $params['message'] = $message;
+
+  // The language of the e-mail. This will one of three values:
+  // - user_preferred_language(): Used for sending mail to a particular website
+  //   user, so that the mail appears in their preferred language.
+  // - global $language: Used when sending a mail back to the user currently
+  //   viewing the site. This will send it in the language they're currently
+  //   using.
+  // - language_default(): Used when sending mail to a pre-existing, 'neutral'
+  //   address, such as the system e-mail address, or when you're unsure of the
+  //   language preferences of the intended recipient.
+  //
+  // Since in our case, we are sending a message to a random e-mail address that
+  // is not necessarily tied to a user account, we will use the site's default
+  // language.
+  $language = language_default();
+
+  // Whether or not to automatically send the mail when drupal_mail() is
+  // called. This defaults to TRUE, and is normally what you want unless you
+  // need to do additional processing before drupal_mail_send() is called.
+  $send = TRUE;
+  // Send the mail, and check for success. Note that this does not guarantee
+  // message delivery; only that there were no PHP-related issues encountered
+  // while sending.
+
+
+	// 2017.3.17, Ye Wang - add reminder handler;
+	$params['type'] = $type;
+
+  $result = drupal_mail($module, $key, $to, $language, $params, $from, $send);
+  if ($result['result'] == TRUE) {
+  	drupal_set_message(t('Your message has been sent.'));
+  }
+  else {
+    drupal_set_message(t('There was a problem sending your message and it was not sent.'), 'error');
+  }
+
+}
+
+/*************************************************************
+ * 2017.3.17, Ye Wang - add reminder handler;
+ *************************************************************/
+function ama_token_requests_mail($key, &$message, $params) {
+
+
+  $message['headers'] = array_merge(
+    $message['headers'],  
+    array(
+      'MIME-Version' => '1.0',
+      'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
+      'Content-Transfer-Encoding' => '8Bit',
+      'X-Mailer' => 'Drupal'
+    )
+  );
+
+  // Each message is associated with a language, which may or may not be the
+  // current user's selected language, depending on the type of e-mail being
+  // sent. This $options array is used later in the t() calls for subject
+  // and body to ensure the proper translation takes effect.
+  $options = array(
+    'langcode' => $message['language']->language,
+  );
+
+  switch ($key) {
+    // Send a simple message from the contact form.
+    case 'token_request_message':
+      $message['subject'] = t('Amalgamated Bank Information Security');
+      $message['body'][] = $params['message'];
+
+		// 2017.3.17, Ye Wang - reminder
+		if ($params['type'] == 'reminder') {
+			$message['subject'] = t('Reminder - '.$message['subject']);
+		}
+      break;
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function ama_token_requests_block_info() {
+  $blocks = array();
+  $blocks['token_request_form_block'] = array(
+    'info' => t('Token Request Form'),
+    'region' => 'content',
+  );
+  
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function ama_token_requests_block_view($delta='') {
+
+  $block = array();
+  switch($delta) {
+    case 'token_request_form_block' :
+      if (isset($_GET['q'])) {
+        $nid = str_replace('node/', '', $_GET['q']);
+        if (is_numeric($nid)) {
+          module_load_include('inc', 'node', 'node.pages');
+          $node = node_load($nid);
+          $form = drupal_get_form('token_request_node_form', $node);        
+          $block['content'] = $form;
+        }
+      }
+      break;
+  }
+  
+  return $block;
+}
+
+/**
+ * Implements hook_cron_job_scheduler_info().
+ */
+function ama_token_requests_cron_job_scheduler_info() {
+  $info = array();
+/* 2017.3.23, Ye Wang - Cedric's code, didn't work
+  $info['ama_token_requests'] = array(
+    'worker callback' => '_send_email_reminder', 
+  );
+*/
+  	$info['ama_token_requests_job'] = array(
+		'worker callback' => 'ama_token_requests_job_send_reminder',
+  	);	
+  return $info;
+}
+
+/**
+ * Administration form for the weekly task.
+ */
+function weekly_task_admin_form($form, &$form_state) {
+ 
+/*
+  $form['send_now'] = array(
+    '#type' => 'button',
+    '#value' => t('Send Emails Now'),
+    '#attributes' => array('style' => 'margin-bottom:15px'),
+    '#suffix' => '<hr><br/>',
+  );
+*/
+  $form['schedule_on_off'] = array(
+    '#type' =>'checkbox', 
+    '#title' => t('Enable Scheduling'),
+    '#default_value' => variable_get('schedule_on_off', 0)
+    //'#description' => t('Warning: checking this box will permanently delete all Tokens Requests from the database before performing the current import!'),      
+  );
+
+  $form['weekly_task_day'] = array(
+    '#type' => 'select',
+    '#title' => t('Day/Time'),
+    '#description' => t(''),
+    '#options' => array(0 => t('Sunday'), 1 => t('Monday'), 2 => t('Tuesday'), 3 => t('Wednesday'), 4 => t('Thursday'), 5 => t('Friday'), 6 => t('Saturday')),
+    '#default_value' => variable_get('weekly_task_day', '0'),
+  );
+
+  $form['weekly_task_hour'] = array(
+    '#type' => 'select',
+    '#title' => t(''),
+    '#description' => t(''),
+    '#options' => array(1 => t('01'), 2 => t('02'), 3 => t('03'), 4 => t('04'), 5 => t('05'), 6 => t('06'), 7 => t('07'), 8 => t('08'), 9 => t('09'), 10 => t('10'), 11 => t('11'), 0 => t('12')),
+    '#default_value' => variable_get('weekly_task_hour', '0'),
+  );  
+
+  $form['weekly_task_min'] = array(
+    '#type' => 'select',
+    '#title' => t(''),
+    '#description' => t(''),
+    '#options' => array(0 => t('00'), 15 => t('15'), 30 => t('30'), 45 => t('45')),
+    '#default_value' => variable_get('weekly_task_min', '0'),
+  );    
+
+  $form['weekly_task_am_pm'] = array(
+    '#type' => 'select',
+    '#title' => t(''),
+    '#description' => t(''),
+    '#options' => array(0 => t('AM'), 1 => t('PM')),
+    '#default_value' => variable_get('weekly_task_am_pm', '0'),
+  );    
+
+  $form = system_settings_form($form);
+
+  $form['#submit'][] = 'weekly_task_admin_form_submit';
+  $form['actions']['submit']['#value'] = t('Save');
+	$form['actions']['submit']['#prefix'] = t('<div style="color:#BB2222; font-weight:bold; padding: 0.5em 0;">Note: regardless of time set, emails are only sent every three hours from 12:00 AM on. If "Enabled Scheduling" is checked, the schedule will fire weekly on that day.</p>');
+  
+  $form['#attached']['css'][] = array(
+    'data' => '#edit-send-now:hover {background: #0a6700;}#edit-send-now {background: #4d8f46;color:#fff;}
+    .form-item-weekly-task-hour, .form-item-weekly-task-min, .form-item-weekly-task-am-p {float: left;}
+    ',
+    'type' => 'inline',
+  );
+  
+  $form['#attached']['js'][] = array(
+    'data' => '
+      jQuery("#edit-schedule-on-off").live("click", function() {
+        toggleSelection("edit-weekly-task-day", jQuery(this).is(":checked"));
+        toggleSelection("edit-weekly-task-hour", jQuery(this).is(":checked"));
+        toggleSelection("edit-weekly-task-min", jQuery(this).is(":checked"));
+        toggleSelection("edit-weekly-task-am-pm", jQuery(this).is(":checked"));
+    });
+
+    function toggleSelection(sel, chk) {
+      if (jQuery("#edit-schedule-on-off").attr("checked")) {
+        jQuery("#" + sel).removeAttr("disabled");
+      } else {
+        jQuery("#" + sel).attr("disabled", "disabled");
+      }
+    }
+    jQuery(document).ready(function() {
+      toggleSelection("edit-weekly-task-day", jQuery(this).is(":checked"));
+      toggleSelection("edit-weekly-task-hour", jQuery(this).is(":checked"));
+      toggleSelection("edit-weekly-task-min", jQuery(this).is(":checked"));
+      toggleSelection("edit-weekly-task-am-pm", jQuery(this).is(":checked"));    
+    });
+    ',
+      'type' => 'inline',    
+    );    
+
+  return $form;
+}
+
+/**
+ * Submit callback for Administration form.
+ * 2017.3.23, Ye Wang
+ * - save new schedule, update cron calls;
+ *
+ */
+/* 2017.3.23, Ye Wang - Cedric's code
+function weekly_task_admin_form_submit(&$form, &$form_state) {
+
+  if (variable_get('weekly_task_am_pm', 0) == 1) {
+    $hour = variable_get('weekly_task_hour', 0) + 12;
+  } else {
+    $hour = variable_get('weekly_task_hour', 0);
+  }
+
+  if ($form_state['input']['schedule_on_off']) {
+    $job = array(
+      'type' => 'ama_token_reminder',
+      'period' => 86400 * 7,
+      'crontab' => variable_get('weekly_task_min', 0) . ' ' . $hour . ' * * ' . variable_get('weekly_task_day', 0),
+      'periodic' => TRUE,
+    );
+  } else {
+  $job = array(
+    'type' => 'ama_token_reminder',
+    'period' => 0,
+    'crontab' => '* * * * *',
+    'periodic' => FALSE,
+  );    
+  }
+
+  //variable_set('ama_token_schedule', isset($form_state['input']['schedule_on_off']) ? 1 : 0);
+  // Update the scheduled job.
+ 
+ 	
+	JobScheduler::get('_send_email_reminder')->set($job); 
+}
+*/
+function weekly_task_admin_form_submit(&$form, &$form_state) { 
+	if (variable_get('weekly_task_am_pm', 0) == 1) {
+		$hour = variable_get('weekly_task_hour', 0) + 12;
+	} else {
+		$hour = variable_get('weekly_task_hour', 0);
+	}
+	
+	if ($form_state['input']['schedule_on_off']) {
+		$job = array(
+			'type' => 'ama_token_reminder_job',
+			'period' => 86400 * 7,
+			'crontab' => variable_get('weekly_task_min', 0) . ' ' . $hour . ' * * ' . variable_get('weekly_task_day', 0),
+			'periodic' => TRUE,
+		);
+	} else {
+		$job = array(
+			'type' => 'ama_token_reminder_job',
+			'period' => 0,
+			'crontab' => '* * * * *',
+			'periodic' => FALSE,
+		);    
+	} 
+	// Update scheduled cron call
+	JobScheduler::get('ama_token_requests_job')->set($job);
+}
+
+
+/* 2017.3.17, Ye Wang - Cedric's code; unfinished;
+function _send_email_reminder() {
+ watchdog('token request', 'Emails sent!', array(), 6);
+}
+*/
+/**************************************************************
+	2017.3.17, Ye Wang
+	Email reminder to request managers:
+	- incompleted requests only;
+	- use the same eamil template, add reminder to subject line;
+ **************************************************************/
+//function _send_email_reminder() {
+function ama_token_requests_job_send_reminder() {
+	$sql = "SELECT N.nid, N.title, E.field_admin_email_email AS email
+			FROM {node} AS N INNER JOIN
+					{field_data_field_admin_email} AS E ON (N.type = E.bundle
+															AND N.nid = E.entity_id) INNER JOIN
+					{field_data_field_token_request} AS FC ON (N.type = FC.bundle
+																AND N.nid = FC.entity_id) INNER JOIN
+					{field_data_field_is_completed} AS FCC ON (FC.field_token_request_value = FCC.entity_id
+																AND FCC.entity_type = 'field_collection_item'
+																AND FCC.bundle = 'field_token_request'
+																AND FCC.field_is_completed_value = 0)
+			WHERE N.type = 'token_request'";
+	$results = db_query($sql)->fetchAll();
+
+	//$options = array();
+	foreach ($results as $result) {
+		$email = decrypt($result->email);
+		$alias = url("node/".$result->nid, array('absolute'=>TRUE));
+		/* for debug
+		$options[$result->nid] = array(
+			'email' => $email,
+			'alias' => $alias,
+		); */
+		// Email reminder to the request manager:
+		ama_token_requests_mail_send($email, $alias, 'reminder');
+		// Log tracking
+		watchdog('Token Request', 'Sent email reminder to %email<br/>Request link: %link', array('%email'=>$email, '%link'=>$alias), WATCHDOG_NOTICE, NULL);
+	} 
+	watchdog('Token Request Reminder', 'Run scheduled job', NULL, WATCHDOG_NOTICE, NULL);
+	//return $options;
+}
+
+
+
+
+/**
+ * Modify the drupal mail system to send HTML emails.
+ */
+class AMAMailSystem implements MailSystemInterface {
+  /**
+   * Concatenate and wrap the e-mail body for plain-text mails.
+   *
+   * @param array $message
+   *   A message array, as described in hook_mail_alter().
+   *
+   * @return array
+   *   The formatted $message.
+   */
+  public function format(array $message) {
+    $message['body'] =   implode("\n\n", $message['body']);
+    return $message;
+  }
+
+  /**
+   * Send an e-mail message, using Drupal variables and default settings.
+   *
+   * @see http://php.net/manual/en/function.mail.php
+   * @see drupal_mail()
+   *
+   * @param array $message
+   *   A message array, as described in hook_mail_alter().
+   *
+   * @return bool
+   *   TRUE if the mail was successfully accepted, otherwise FALSE.
+   */
+  public function mail(array $message) {
+    $mimeheaders = array();
+    foreach ($message['headers'] as $name => $value) {
+      $mimeheaders[] = $name . ': ' . mime_header_encode($value);
+    }
+    $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
+    return mail(
+      $message['to'],
+      mime_header_encode($message['subject']),
+      // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+      // on Unix and CRLF on Windows. Drupal automatically guesses the
+      // line-ending format appropriate for your system. If you need to
+      // override this, adjust $conf['mail_line_endings'] in settings.php.
+      preg_replace('@\r?\n@', $line_endings, $message['body']),
+      // For headers, PHP's API suggests that we use CRLF normally,
+      // but some MTAs incorrectly replace LF with CRLF. See #234403.
+      implode("\n", $mimeheaders)
+    );
+  }
+}
+
+
+/* 2017.3.20, Ye Wang - doesn't look that they are in use?!
+function ama_token_requests_views_pre_render(&$view) {
+
+  switch ($view->name) {
+    case 'token_request_export':
+      //  override the global custom text field value
+      //$view->field['customer_id']->options['alter']['text'] = 'My custom text';
+      //$view->result[0]->field_customer_id[0]['raw']['value'] = '10';
+    break;
+  }
+}
+
+function ama_token_requests_field_view(&$view) {
+}
+*/

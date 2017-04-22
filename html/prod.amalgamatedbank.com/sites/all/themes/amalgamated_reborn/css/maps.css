@@ -1,0 +1,30 @@
+/******
+ * Amalgamated Reborn Locator Map Styles
+ *
+ * Copyright 2014 
+ * Created by: Joel Bousley
+ * URL: http://www.spartansystems.co
+ *
+******/
+
+#atmlocator body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#sliderMiddle {
+    background-color: #fff;
+    left: -36%;
+    z-index: 200;
+}
+
+#atmlocator #sliderMiddle .sliderTab {
+    border-radius: 6px 6px 0 0;
+}
+
+.sliderTab font {
+color: #c5d3ee !important;
+font: 200 20px/30px Arial, Helvetica, sans-serif;
+letter-spacing: 0.05em;
+}
+

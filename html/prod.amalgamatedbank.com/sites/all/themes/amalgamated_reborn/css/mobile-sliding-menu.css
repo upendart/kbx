@@ -1,0 +1,131 @@
+/*
+Styles for the mobile sliding menu with TB MegaMenu...
+*/
+/* 
+    Created on : Aug 28, 2014, 2:01:34 PM
+    Author     : Joel Bousley
+*/
+html.mm-basic nav.mm-basic {
+    background: #00305d;
+}
+
+.mm-menu.mm-front {
+    z-index: 1200;
+    box-shadow: none;
+}
+
+.mm-menu.mm-vertical .mm-list > li.mm-opened > a.mm-subopen {
+    height: 100%;
+}
+
+html.mm-basic nav.mm-basic .mm-list > li {
+    border-top: none;
+    border-bottom: none;
+    width: 250px;
+}
+
+.mm-menu .dropdown-menu > li > a {
+    color: #fff;
+    font-size: 13px !important;
+    padding: 0 0 0 15px !important;
+    line-height: 20px;
+    text-shadow: none;
+}
+
+/* To hide the "Menu" row item on the top portion of navigation */
+html.mm-basic nav.mm-basic .mm-list li.mmenu-expanded {
+  display: none;
+}
+
+.mm-menu .separator {
+    padding: 0 0;
+    margin: 0 10px;
+    color: #979DA7;
+}
+
+.mm-menu .separator hr {
+    border: 0;
+    border-top: 1px solid #c4ccda;
+    margin: 5px 10px 3px 0;
+}
+
+.mm-list a:hover {
+    background-color: transparent !important;
+}
+
+.mm-menu.mm-vertical .mm-list li.mm-opened > ul {
+    background: transparent;
+    border: none;
+}
+
+html.mm-basic nav.mm-basic .mm-list > li > a:hover {
+    background-color: transparent;
+}
+
+.mm-list a.mm-subopen.mm-fullsubopen {
+    width: 260px;
+    background-color: transparent !important;
+}
+
+html.mm-opening .mm-menu.mm-right.mm-front, 
+html.mm-opening .mm-menu.mm-right.mm-next {
+    
+}
+
+.mm-menu.mm-vertical .mm-list .mm-panel {
+    display: none;
+    padding: 0 0 0 10px;
+}
+
+.mm-menu .dropdown-menu {
+    box-shadow: none;
+    position: relative;
+}
+
+.mm-menu .dropdown-menu .menu-item--nolink {
+    color: orange;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+html.mm-basic nav.mm-basic .mm-list > li > span {
+    margin: 5px 0;
+    padding: 0 10px;
+}
+
+.mm-menu .mm-list {
+    padding: 0;
+}
+
+.mm-menu span.caret {
+    display: none;
+}
+
+html.mm-basic nav.mm-basic > .mm-panel {
+    padding: 26px 0 0 0;
+
+}
+
+.mm-menu.mm-right {
+    width: 270px;
+}
+html.mm-right.mm-opening .mm-page {
+    right: 270px;
+}
+
+html.mm-basic nav.mm-basic > .mm-header {
+    background: #00305d !important;
+    height: 57px;
+    line-height: 57px;
+}
+
+/* For items on the sliding menu that are first item levels that are linked/don't have children */
+.mm-menu .leaf a.menu-top-level-direct-link {
+	line-height: 20px;
+	font: inherit;
+    font-size: 14px;
+	padding-top: 3px !important;
+	padding-left: 10px !important;
+	padding-bottom: 8px! important;
+	
+}

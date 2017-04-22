@@ -1,0 +1,15 @@
+diff --git a/field_group_titles.module b/field_group_titles.module
+index c412e28..908b70b 100644
+--- a/field_group_titles.module
++++ b/field_group_titles.module
+@@ -162,7 +162,9 @@ function field_group_titles_field_group_pre_render(&$element, $group, &$form) {
+       // Loop through children of the group and look for any field group title
+       // fields.
+       foreach ($element as $field_attribs) {
+-        if (array_key_exists('#field_type', $field_attribs) && $field_attribs['#field_type'] == 'field_group_titles') {
++        if (is_array($field_attribs) &&
++          array_key_exists('#field_type', $field_attribs) &&
++          $field_attribs['#field_type'] == 'field_group_titles') {
+           // If there is a title field overwrite the group label.
+           $group->label = $field_attribs['#items'][0]['title_override'];
+         }

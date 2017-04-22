@@ -1,0 +1,8 @@
+name = "AMA Give Back Savings Signup"
+description = "Exporting user Give Back Savings signups"
+ 
+version = "7.x-1.0"
+core = "7.x"
+package = Nylon Technology
+ 
+files[] = ama_give_back_savings_signup.module

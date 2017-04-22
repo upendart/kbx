@@ -1,0 +1,72 @@
+<?php
+
+
+/**
+ * Implements hook_menu()
+ */
+function ama_charity_signup_menu() {
+	$items = array();
+	 
+	// Admin report:
+	$items["admin/reports/ama_charity_signup"] = array( 
+		'title'				=> t("AMA Charity Signup"),
+		'description'		=> t("Exporting user 100-100 signups"),
+		'page callback'		=> t("ama_charity_signup_report"),
+		//'access callback'	=> array("edit content"),
+		'access arguments' 	=> array("access administration pages"),
+		'type'				=> MENU_CALLBACK,
+	); 
+	
+	return $items;
+}
+
+function ama_charity_signup_report() {
+	// Get user signups
+	$sql = "SELECT 
+				email,
+				charity_name,
+				charity_key,
+				date_created,
+				url_query_string
+			FROM 
+				{custom_account_charity_signup} AS acs
+			WHERE
+				acs.is_100_100 = 1  
+			ORDER BY 
+				acs.date_created ASC";
+	$results = db_query($sql);		
+
+	// Generate CSV 
+  	// header('Content-Type: text/csv; charset=utf-8');
+  	header("Cache-Control: public");
+  	header("Content-Type: application/octet-stream");
+  	header("Cache-Control: no-store, no-cache, must-revalidate");
+  	header("Cache-Control: post-check=0, pre-check=0");	
+	header('Content-Disposition: attachment; filename="ama_charity_signup_report.csv"'); 
+	header("Content-Transfer-Encoding: binary");
+	
+	// Open file to write	
+    $output = fopen("php://output", "w"); 
+	
+	// column headers:
+	fputcsv($output, array(	t("User Email"), t("Charity"), t("Charity Key"), t("Date Created"), t("URL Query String"),) );
+	
+	// Output data 
+	foreach ($results as $row) {
+        fputcsv($output, array($row->email, $row->charity_name, $row->charity_key, $row->date_created, $row->url_query_string,));
+    }
+	// END OF CSV SETTINGS	
+	
+	
+	//fputcsv($output, array('test', 'emailTo', 'emailFrom', 'uid', 'message', ));
+	
+	// close file
+    fclose($output);
+	//END: CSV  
+	
+	// Tracked in logs:
+	watchdog("Custom Report", "AMA Charity Signup Report");
+	
+ 	// Exit the script
+  	drupal_exit();	
+}

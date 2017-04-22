@@ -1,0 +1,258 @@
+/******
+ * Navigation Styles
+ *
+ * Copyright 2014 
+ * Created by: Joel Bousley
+ * URL: http://www.spartansystems.co
+ * Designed and built based on Twitter Bootstrap 3.
+ *
+******/
+section#navbar .navbar-collapse {
+    border-top: none;
+    box-shadow: none;
+}
+.navbar-default .navbar-nav>.active>a, 
+.navbar-default .navbar-nav>.active>a:hover, 
+.navbar-default .navbar-nav>.active>a:focus {
+    background-color: transparent;
+    color: #fff;
+}
+
+.navbar-default .navbar-nav>.dropdown>a .caret,
+.navbar-default .navbar-nav>.dropdown>a:hover .caret{
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+}
+
+section.header .r1 .navbar-toggle {
+    background: url(../images/icon-navigation-1.png ) 0 0 no-repeat;
+    cursor: pointer;
+    float: right;
+    height: 20px;
+    margin-left: 20px;
+    margin-right: 0;
+    padding: 0;
+    width: 22px;
+    border: none;
+    border-radius: 0;
+}
+
+section.navbar.container {
+    margin-top: 0;
+}
+
+section.navbar.content {
+    border: none;
+    border-radius: 0;
+}
+
+/*** TB Mega Menu ***/
+.region-navigation .tb-megamenu .nav-collapse.collapse {
+    display: block;
+}
+.region-navigation .tb-megamenu {
+    background-color: transparent;
+    border: none !important;
+    
+}
+
+.region-navigation .tb-megamenu button.nav-collapse {
+background: #002242;
+}
+.region-navigation .tb-megamenu .dropdown-menu {
+    border: none;
+}
+.region-navigation .tb-megamenu .row-fluid {
+    background-color: #002242;
+    border: none;
+    border-radius: 6px;
+}
+
+.region-navigation .tb-megamenu .dropdown-menu .active > a, 
+.region-navigation .tb-megamenu .dropdown-menu .active > a:hover {
+    background-color: transparent;
+}
+
+.region-navigation .tb-megamenu .dropdown-menu li > a {
+    border-top: none;
+}
+
+.region-navigation .tb-megamenu .nav > li > a {
+    padding: 0 20px 15px 20px;
+}
+
+.region-navigation .tb-megamenu .nav li.dropdown.active > .dropdown-toggle, 
+.region-navigation .tb-megamenu .nav li.dropdown.open.active > .dropdown-toggle, 
+.region-navigation .tb-megamenu .nav > li.dropdown.open.active > a:hover {
+    background-color: transparent;
+    border-color: transparent;
+    color: #eee;
+}
+
+.region-navigation .tb-megamenu .nav > .active > a, 
+.region-navigation .tb-megamenu .nav > .active > a:hover, 
+.region-navigation .tb-megamenu .nav > .active > a:focus {
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.region-navigation .tb-megamenu .mega-align-justify > .dropdown-menu {
+    left: 0;
+    margin-left: 0;
+    top: auto;
+}
+
+.region-navigation .tb-megamenu .dropdown-menu {
+    border-bottom: none;
+}
+
+.region-navigation .tb-megamenu .nav > li > a {
+    border-right: none;
+}
+
+.region-navigation .tb-megamenu .nav > li > a:hover {
+    border-right: none;
+    background-color: transparent;
+}
+
+.region-navigation .tb-megamenu .mega-nav > li:first-child > a, 
+.region-navigation tb-megamenu .dropdown-menu .mega-nav > li:first-child > a {
+    cursor: default;
+}
+
+.region-navigation .tb-megamenu .mega-nav, 
+.region-navigation .tb-megamenu .dropdown-menu .mega-nav {
+    margin: 20px 15px 0 15px;
+    padding: 0;
+    list-style: none;
+}
+
+.region-navigation .tb-megamenu .dropdown-menu .active > a, 
+.region-navigation .tb-megamenu .dropdown-menu .active > a:hover {
+    background-image: none;
+}
+
+#block-tb-megamenu-main-menu .nav-collapse.collapse > .tb-megamenu-nav > .tb-megamenu-item > .tb-megamenu-submenu {
+    
+}
+
+.region-navigation .tb-megamenu-submenu {
+    width: 100%;
+    background: #002242;
+border-radius: 6px !important;
+box-shadow: 0 3px 0 #00152a;
+display: none;
+padding: 0 0 30px 0;
+position: absolute;
+right: 0;
+top: 70px;
+}
+
+.region-navigation .tb-megamenu .nav > li > a:focus,
+.region-navigation .tb-megamenu .nav > li > a:hover {
+  background-color: transparent;  
+  color: #fff;
+}
+
+.region-navigation .tb-megamenu-submenu:before {
+    
+}
+
+.region-navigation .tb-megamenu .nav li span.flag {
+    background: transparent url(../images/icon-flag.svg) no-repeat;
+    content: '';
+    height: 35px;
+    position: absolute;
+    right: -10px;
+    top: 2px;
+    width: 22px;
+}
+
+.region-navigation .tb-megamenu .dropdown-menu li > a {
+    color: #fff;
+}
+
+.tb-megamenu .nav li.dropdown.open > .dropdown-toggle {
+  background-color: transparent; 
+  color: #fff;
+}
+
+.tb-megamenu .nav-collapse .nav > li > a:focus {
+    background-color: none;
+  }
+
+/*** Menu Attributes (the module) Styles ***/
+.menu-title a {
+    color: #f68b3c !important;
+    cursor: default;
+    font-size: 18px !important;
+    line-height: 18px !important;
+    margin-bottom: 20px;
+} 
+
+.region-navigation .menu-link-normal a {
+    color: #fff !important;
+    font-size: 24px;
+    line-height: 24px !important;
+}
+.region-navigation .tb-megamenu .dropdown-menu .active > a:hover,
+.region-navigation .menu-link-normal a:hover {
+    text-decoration: underline !important;
+}
+
+.region-navigation .menu-link-normal a p {
+    color: #c0cade;
+    cursor: default;
+    font-size: 16px;
+    line-height: 18px;
+    margin: 20px 0;
+}
+
+.region-navigation .menu-link-normal a p:hover {
+    text-decoration: none !important;
+}
+
+.menu-link-normal-first {
+    border-top: #3b4860 solid 1px;
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+.menu-link-large {
+    color: #fff;
+    font-size: 24px;
+}
+
+.col-md-4.menu-link-centered {
+    margin-top: 0;
+    margin-left: 33% !important;
+    margin-right: 33% !important;
+}
+
+.region-navigation .tb-megamenu-subnav li.rounded {
+    background-color: transparent !important;
+}
+
+.region-navigation .tb-megamenu-subnav li.rounded:hover {
+    background-color: #fff !important;
+    color: #002242 !important;
+}
+
+.region-navigation .tb-megamenu-subnav li.rounded a:hover {
+    color: #002242 !important;
+}
+
+.region-navigation .tb-megamenu-subnav li.rounded a {
+    color: #fff !important;
+    font-weight: 600 !important;
+    padding-top: 3px !important;
+}
+
+.region-navigation .menu-title-big-white {
+    color: #fff;
+    font-size: 24px;
+    line-height: 24px !important;
+    font-family: 'Circular Bold';
+    letter-spacing: -0.03em;
+    padding: 0;
+}

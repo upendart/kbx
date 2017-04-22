@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the AB Display Suite Layouts feature.
+ */
+
+include_once 'ab_display_suite_layouts.features.inc';

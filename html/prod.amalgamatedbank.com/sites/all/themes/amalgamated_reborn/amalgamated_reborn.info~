@@ -1,0 +1,93 @@
+name = Amalgamated Reborn 
+description = A Bootstrap 3 theme for the redesign of Amalgamated Banks website in 2014.
+core = 7.x
+base theme = bootstrap
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Regions
+;;;;;;;;;;;;;;;;;;;;;
+regions[site_alerts]                = 'Web Site Alerts'
+regions[navigation]                 = 'Navigation'
+regions[primary_nav_menus]          = 'Primary Navigation Menus'
+regions[secondary_nav_menus]        = 'Secondary Navigation Menus'
+regions[tablet_nav_menus]           = 'Tablet Navigation Menus'
+regions[mobile_nav_menus]           = 'Mobile Navigation Menus'
+regions[header_right_side]          = 'Header Right Side"
+regions[header]                     = 'Top Bar'
+regions[highlighted]                = 'Highlighted'
+regions[help]                       = 'Help'
+regions[content_top]                = 'Content Top'
+regions[product_landing_features]   = 'Features'
+regions[sidebar_first]              = 'Sidebar Left'
+regions[content]                    = 'Main Content'
+regions[sidebar_second]             = 'Sidebar Right'
+regions[segment_section_1]          = 'Segment Section 1'
+regions[segment_section_2]          = 'Segment Section 2'
+regions[segment_section_3]          = 'Segment Section 3'
+regions[segment_section_4]          = 'Segment Section 4'
+regions[content_bottom]             = 'Content Bottom'
+regions[footer_top_c1]              = 'Footer Top Column 1'
+regions[footer_top_c2]              = 'Footer Top Column 2'
+regions[footer_top_c3]              = 'Footer Top Column 3'
+regions[footer_top_c4]              = 'Footer Top Column 4'
+regions[footer_top_c5]              = 'Footer Top Column 5'
+regions[footer_bottom_c1]           = 'Footer Bottom Column 1'
+regions[footer_bottom_c2]           = 'Footer Bottom Column 2'
+regions[footer]                     = 'Footer'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Stylesheets
+;;;;;;;;;;;;;;;;;;;;;
+
+stylesheets[all][] = css/style.css
+stylesheets[all][] = css/mobile-sliding-menu.css
+stylesheets[all][] = css/ckeditor.css
+stylesheets[all][] = css/navigation.css
+stylesheets[all][] = css/content-types.css
+stylesheets[all][] = css/jquery.selectbox.css
+stylesheets[all][] = css/maps.css
+stylesheets[all][] = css/parent-theme-overrides.css
+
+
+; For information on choosing the desired method, please read the Drupal
+; Bootstrap sub-theme "how-to" documentation:
+; https://drupal.org/node/1978010
+
+; ;----------------------------------
+; ; METHOD 1: Bootstrap Source Files
+; ;----------------------------------
+; 
+; ;;;;;;;;;;;;;;;;;;;;;
+; ;; Scripts
+; ;;;;;;;;;;;;;;;;;;;;;
+; 
+; scripts[] = 'bootstrap/js/affix.js'
+; scripts[] = 'bootstrap/js/alert.js'
+; scripts[] = 'bootstrap/js/button.js'
+; scripts[] = 'bootstrap/js/carousel.js'
+; scripts[] = 'bootstrap/js/collapse.js'
+; scripts[] = 'bootstrap/js/dropdown.js'
+; scripts[] = 'bootstrap/js/modal.js'
+; scripts[] = 'bootstrap/js/tooltip.js'
+; scripts[] = 'bootstrap/js/popover.js'
+; scripts[] = 'bootstrap/js/scrollspy.js'
+; scripts[] = 'bootstrap/js/tab.js'
+; scripts[] = 'bootstrap/js/transition.js'
+scripts[] = 'js/custom.js'
+scripts[] = 'js/jquery.selectbox.js'
+scripts[] = 'js/login.js'
+scripts[] = 'js/jquery-migrate.js'
+; ; Disable BootstrapCDN if using Bootstrap source files in your sub-theme.
+; settings[bootstrap_cdn] = ''
+
+
+; ;-------------------------
+; ; METHOD 2: Bootstrap CDN
+; ;-------------------------
+;
+; Method 2 uses BootstrapCDN, the only thing you might need to provide here
+; is overrides to Bootstrap theme settings. Copy them here from the base theme
+; to override.    

@@ -1,0 +1,67 @@
+<form action="https://www.amalgamatedbank.com/tob/live/usp-core/app/initialLogin" autocomplete="off" class="form-horizontal styled" id="loginForm" method="post" onsubmit="return setParamStatus();">
+    <div class="form-group">
+         <div class="col-md-4">
+			<label for="userid" class="control-label" style="color:rgba(255,255,255,0.8) !important;padding-left:0 !important;margin-right: 5px !important;">
+				Username
+			</label>
+		 </div>
+         <div class="col-md-8">
+            <input autocomplete="off" class="form-control" id="userid" name="userid" placeholder="Username" type="text" value="" />
+			</div>
+     </div>
+
+    <div class="form-group">
+        <div class="col-md-4">
+		<label for="password" class="control-label" style="color:rgba(255,255,255,0.8)  !important;padding-left:0 !important;margin-right: 5px !important;">Password</label>
+		</div>
+        <div class="col-md-8">
+             <input class="form-control" id="password" name="password" placeholder="**********" type="password" value="" />
+		</div>
+     </div>
+
+    <div class="form-group">
+        <div class="col-md-12">
+            <input class="pull-left btn rounded with-blue-background with-white-text" id="submitBtn" type="submit" value="Login" />
+        </div>
+		<div class="col-md-1">&nbsp;</div>
+		<div class="pull-left forgot-password">
+            <a href="https://www.amalgamatedbank.com/tob/live/usp-core/app/authUpdate">Forgot Password?</a></div>
+        </div>
+     </div>
+    <input id="testcookie" name="testcookie" type="hidden" value="false" /> 
+	<input id="testjs" name="testjs" type="hidden" value="false" /> 
+	<input id="dscheck" name="dscheck" type="hidden" value="0" />
+</form>
+
+<form action="https://www.amalgamatedbank.com/tob/live/usp-core/app/initialLogin" autocomplete="off" class="form-horizontal styled" id="loginForm" method="post" onsubmit="return setParamStatus();">
+<table width="530px" cellpadding="0" cellspacing="0" border="0">                       
+	<tbody>
+	<tr>
+		<td colspan="4" height="12px"></td>
+	</tr>
+							
+	<tr>
+		<td valign="middle"><span class="signin">ONLINE BANKING SIGN IN</span></td>
+		<td>
+			<div class="input-wrapper">
+				<!--<input type="text" name="userid" maxlength="256" class="appfield1 userid" onfocus="runAlert();" />-->
+				<label for="username">USERNAME</label>
+				<input autocomplete="off" class="appfield1" maxlength="256"  id="userid" name="userid" placeholder="Username" type="text" value="" />
+			</div>    
+		</td>
+		<td>
+			<div class="input-wrapper">
+				<label for="password">PASSWORD</label>
+				 <input  id="password" name="password" placeholder="**********" type="password" value="" class="appfield1" onfocus="bPasswordFocus = true;" onblur="bPasswordFocus = false;" maxlength="32" />
+			</div>
+		</td>
+		<td valign="baseline">
+			<input type="submit" name="login" alt="Login"  class="loginbutton" id="submitBtn" value="Login">
+		</td>
+	</tr>
+	</tbody>
+</table>
+<input id="testcookie" name="testcookie" type="hidden" value="false" /> 
+<input id="testjs" name="testjs" type="hidden" value="false" /> 
+<input id="dscheck" name="dscheck" type="hidden" value="0" />
+</form>

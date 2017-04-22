@@ -1,0 +1,8 @@
+name = "AMA Charity Signup"
+description = "Exporting user 100-100 signups"
+ 
+version = "7.x-1.0"
+core = "7.x"
+package = Nylon Technology
+ 
+files[] = ama_charity_signup.module

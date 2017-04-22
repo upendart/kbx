@@ -1,0 +1,875 @@
+<?php 
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+function nylon_hooks_menu() {
+  $items = array();
+  $items['node/%nylon_hooks_menu/submissions'] = array(
+    'title' => 'Petition Submissions',
+    'description' => 'Manage submissions of this Petition.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('nylon_organize_submissions_page_form'),
+    'access callback' => array('submission_access_callback'),
+		//'access arguments' => array('publication_access_callback'),
+		'type' => MENU_LOCAL_TASK,
+  );
+  /*$items['ab-sso/sg-account-verify'] = array(
+    'title' => 'SunGuard Account Verification',
+    'page callback' => 'ab_sso_sg_account_verify',
+    'access callback' => array('sso_login_access_callback'),
+    'type' => MENU_CALLBACK,
+  );*/
+  return $items;
+}
+
+function sso_login_access_callback(){
+  global $user;
+	//watchdog('publication user roles', '<pre>'.var_export($user->roles, true).'</pre>');
+  //if(in_array('content editor', $user->roles) || in_array('administrator', $user->roles)){
+    return true;
+  //} else {
+		//return false;
+	//}
+}
+
+function submission_access_callback(){
+  global $user;
+	//watchdog('publication user roles', '<pre>'.var_export($user->roles, true).'</pre>');
+  if(in_array('content editor', $user->roles) || in_array('administrator', $user->roles)){
+    return true;
+  } else {
+		return false;
+	}
+}
+
+/**
+ * hook_admin_paths().
+ * Tell Drupal we want to add this url to a standard admin page
+ */
+function nylon_hooks_admin_paths(){
+	return array(
+			'node/*/submissions' => TRUE,
+	);
+}
+
+/**
+ * Menu loader callback.
+ */
+function nylon_hooks_menu_load($nid) {
+  if (!is_numeric($nid)) {
+    return FALSE;
+  }
+  // Load the full node so that we can determine that it's the right
+  // content type.
+  $node = node_load($nid);
+  // If the node has failed to load, or isn't the right content type, do not show.
+  if (!isset($node->type) || $node->type != 'petition') {
+    return FALSE;
+  }
+  return $node;
+}
+
+
+/**
+ * SG SSO Login page
+ */
+function ab_sso_sg_account_verify(){
+	
+	$output = '';
+	global $user;
+		
+	drupal_add_js('https://amalgamated.okta.com/js/sdk/okta-sign-in-1.0.2.min.js','external');
+	drupal_add_css('https://www.amalgamatedbank.com/sites/all/themes/amalgamated_reborn/css/okta-sign-in-1.0.2.min.css','external');
+	drupal_add_css('https://amalgamated.okta.com/css/login/okta-theme.css','external');
+		
+	$output .= '
+	<style>
+		body {
+			background-image: url(\'https://farm9.staticflickr.com/8332/8451032652_b2bf0bdadc_h.jpg\');
+			background-repeat: no-repeat;
+			background-position: center center fixed;
+			-webkit-background-size: cover;
+			-moz-background-size: cover;
+			-o-background-size: cover;
+			background-size: cover;
+		}
+	
+		#container #okta-login-container .button {
+			color: #ffffff;
+			background-color: #3a3f44;
+			border-color: #3a3f44;
+			background-image: -webkit-linear-gradient(#484e55, #3a3f44 60%, #313539);
+			background-image: -o-linear-gradient(#484e55, #3a3f44 60%, #313539);
+			background-image: -webkit-gradient(linear, left top, left bottom, from(#484e55), color-stop(60%, #3a3f44), to(#313539));
+			background-image: linear-gradient(#484e55, #3a3f44 60%, #313539);
+			background-repeat: no-repeat;
+			filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=\'#ff484e55\', endColorstr=\'#ff313539\', GradientType=0);
+			-webkit-filter: none;
+			filter: none;
+		}
+		
+		#okta-login-container .auth-container {
+			background-color: #ffffff !important;
+		}
+		
+		#okta-login-container .okta-form-title {
+			display: none !important;
+			visibility: hidden !important;
+		}
+		
+		.okta-sign-in-header .auth-org-logo {
+			padding-top: 20px !important;
+		}
+		
+	</style>
+	
+	<!-- Render the login widget here -->
+  <div id="okta-login-container"></div>
+
+  <!-- Script to init the widget -->
+  <script>
+    var baseUrl = \'https://amalgamated.okta.com\';
+    var oktaSignIn = new OktaSignIn({
+			baseUrl: baseUrl,
+			logo: \'https://www.amalgamatedbank.com/sites/all/themes/amalgamated_reborn/images/AMA-Trust-Web.gif\',
+			features: {
+				securityImage: false,
+				rememberMe: true,
+				smsRecovery: false,
+				selfServiceUnlock: true
+			},
+		});
+    oktaSignIn.renderEl(
+      { el: \'#okta-login-container\' },
+      function (res) {
+        if (res.status === \'SUCCESS\') {
+          console.log(\'User %s successfully authenticated %o\', res.user.profile.login, res.user);
+          res.session.setCookieAndRedirect(\'https://www.amalgamatedbank.com/saml_login\');
+        }
+      }
+    );
+  </script>
+	';
+	
+	/*if(isset($_POST['_textBoxUserId']) && isset($_POST['_textBoxPassWord'])){
+		//$output .= '<pre>'.print_r($_POST,true).'</pre>';
+		$output .= '
+		<script>
+		window.onload = function(){
+			document.getElementById("input22").value = "'.$_POST['_textBoxUserId'].'";
+			document.getElementById("input29").value = "'.$_POST['_textBoxPassWord'].'";
+			//document.getElementById("form15").submit();
+			document.forms["form15"].submit();
+		}
+		</script>
+		';
+	}*/
+	
+  global $_simplesamlphp_auth_as;
+  //global $_simplesamlphp_auth_saml_attributes;
+  //global $_simplesamlphp_auth_saml_config;
+  //global $_simplesamlphp_auth_saml_version;
+	
+	if (!$_simplesamlphp_auth_as->isAuthenticated()) {
+		//$output .= 'User NOT SAML authenticated:<br><pre>'.print_r($user, true).'</pre>';
+	} elseif($_simplesamlphp_auth_as->isAuthenticated()){
+		//$output = '';
+		//$output .= 'User IS SAML authenticated:<br><pre>'.print_r($user, true).'</pre>';
+		$output = 'Hello - you are already logged into trust web. Please refresh this page if you are not redirected shortly.';
+		//$output .= '<br><br><a href="/ab-sso/sg-account-verify/?accfis=t">Click here to access FIS.</a>';
+	
+		//if(isset($_REQUEST['accfis'])){
+			
+			//$output .= '<BR><BR>USER<br><pre>'.print_r($user, true).'</pre>';
+			
+  		global $_simplesamlphp_auth_saml_attributes;
+			//$output .= '<BR><BR>AUTH AS<br><pre>'.print_r($_simplesamlphp_auth_as, true).'</pre>';
+			//$output .= '<BR><BR>ATTR<br><pre>'.print_r($_simplesamlphp_auth_saml_attributes, true).'</pre>';
+			
+			//$config = SimpleSAML_Configuration::getInstance();
+			//$output .= '<BR><BR>CONF<br><pre>'.print_r($config, true).'</pre>';
+			$session = SimpleSAML_Session::getSessionFromRequest();
+			//$assertion = SimpleSAML_Auth_Simple::getAuthDataArray();
+			//$output .= '<BR><BR>SESS<br><pre>'.print_r($session, true).'</pre>';
+			//$output .= '<BR><BR>ASSERT<br><pre>'.print_r($assertion, true).'</pre>';
+			//if(isset($session->authData::SimpleSAML_Session)){
+				//$session_piece_1 = $session->getsessionId();
+				//$output .= '<BR><BR>SESSP1<br><pre>'.print_r($session_piece_1, true).'</pre>';
+				$session_piece_2 = $session->getAuthData('default-sp', 'saml:sp:SessionIndex');
+				//$output .= '<BR><BR>SESSCURRINDEX<br><pre>'.print_r($session_piece_2, true).'</pre>';
+				//$session_piece_3 = $session->getAuthData('default-sp', 'saml:sp:NameID');
+				//$session_piece_3 = array('NameID' => $session_piece_3['Value']);
+				//$output .= '<BR><BR>SESSP3<br><pre>'.print_r($session_piece_3, true).'</pre>';
+				//$session_piece_4 = $session->getAuthData('default-sp', 'saml:sp:prevAuth');
+				//$session_piece_4 = array('SAMLIssuer' => $session_piece_4['issuer']);
+				//$output .= '<BR><BR>SESSP4<br><pre>'.print_r($session_piece_4, true).'</pre>';
+				
+				//$session_piece_required = array('NameID' => $session_piece_3['Value'],'SAMLIssuer' => $session_piece_4['issuer']);
+				
+				// initializing or creating array
+				//$data = array('total_stud' => 500);
+				
+				// creating object of SimpleXMLElement
+				/*$xml_data = new SimpleXMLElement('<?xml version="1.0"?><data></data>');
+				
+				// function call to convert array to xml
+				array_to_xml($session_piece_required,$xml_data);
+				
+				//saving generated xml file; 
+				$output .= htmlentities($xml_data->asXML());*/
+		
+				$get_saml_response = db_query("SELECT _global_office_value FROM simpleSAMLphp_assertstore WHERE _key=:key", array(':key' => $session_piece_2));
+				$output.= "<form name='frm' action='https://abnyacs.infinity.com/CSA_ACS/ABNY/acs/POST.do?ApplicationID=GO&TenantID=abny' method='POST'>";
+			
+				foreach ($get_saml_response as $saml_response) {
+					$output .= "<input type='hidden' name='SAMLResponse' value='".$saml_response->_global_office_value."'>";
+				}
+				
+				//unset($_SESSION['SAMLResponse']);
+				
+				//watchdog('SAML Form Post', '<pre>'.print_r($output, true).'</pre>');
+				
+				$output .= "</form>";
+				watchdog('SAML Form Post', '<pre>'.print_r($output, true).'</pre>');
+				$output .= "
+				<script language='javascript'>
+				document.forms['frm'].submit();
+				//return false;
+				</script>";
+	
+	}
+	
+	//$output .= '<BR><BR><pre>'.print_r($_simplesamlphp_auth_as, true).'</pre>';
+	//$output .= '<BR><BR><pre>'.print_r($_simplesamlphp_auth_saml_attributes, true).'</pre>';
+	//$output .= '<BR><BR><pre>'.print_r($_simplesamlphp_auth_saml_config, true).'</pre>';
+	//$output .= '<BR><BR><pre>'.print_r($_simplesamlphp_auth_saml_version, true).'</pre>';
+	
+	return $output;
+
+}
+
+/**
+ * organize publication chapters page().
+ * Organize publication chapters
+ *
+ * Chapter/Article parent-child form.
+ */
+function nylon_organize_submissions_page_form($form_state) {
+	
+	$args = explode('/', $_SERVER['REQUEST_URI']);
+	//watchdog('block node build', '<pre>'.print_r($args, true).'</pre>');
+	
+	if(arg(3)=='delete'){
+		//db_query("DELETE FROM {webform_su} WHERE id = :id", array(':id' => arg(4)));
+		//drupal_goto(arg(0).'/'.arg(1).'/'.arg(2));
+	}
+	
+	$get_stories = db_query("SELECT a.sid, b.cid, b.form_key, c.data FROM webform_submissions a, webform_component b, webform_submitted_data c WHERE a.nid=:nid AND a.sid=c.sid AND a.nid=b.nid AND b.cid=c.cid ORDER BY sid ASC", array(':nid' => '793'));
+	foreach($get_stories as $story){
+		if($story->form_key=='state'){
+			$text_content[$story->sid][$story->form_key] = $story->data;
+			$text_content[$story->sid]['sid'] = $story->sid;		
+		} else {
+		//if($story->form_key=='first_name' || $story->form_key=='last_name_or_initial' || $story->form_key=='city' || $story->form_key=='state' || $story->form_key=='why_i_believe_america_needs_a_raise'){
+			$text_content[$story->sid][$story->form_key] = decrypt($story->data, array('base64' => TRUE));
+			$text_content[$story->sid]['sid'] = $story->sid;
+		//}
+		//if($story->form_key=='display_story' || $story->form_key=='sort_order'){
+			//$text_content[$story->sid][$story->form_key] = $story->data;
+		//}
+		}
+	}
+	$text = '<table>';
+	foreach($text_content as $text_cnt){
+		//watchdog('block node build', '<pre>'.print_r($text_cnt, true).'</pre>');
+		//if(isset($text_cnt['display_story']) && $text_cnt['display_story']=='1'){
+			$text .= '
+			<tr>
+				<td>'.$text_cnt['first_name'].'</td><td>'.$text_cnt['last_name_or_initial'].'</td><td>'.$text_cnt['city'].'</td><td>'.$text_cnt['state'].'</td><td></td><td><a href="/node/793/submission/'.$text_cnt['sid'].'/edit?destination=node/796/submissions">Edit</a></td>
+			</tr>';
+		//}
+	}
+	$text .= '</table>';
+	
+	/*$header = array(
+		array('data' => 'Title', 'field' => 'title', 'sort' => 'asc'),
+		array('data' => 'Node ID', 'field' => 'nid'),
+		array('data' => 'Type', 'field' => 'type'),
+		array('data' => 'Created', 'field' => 'created'),
+		array('data' => 'Published'),
+		);
+		
+	$query = db_select('node', 'n')
+				->condition('status', 1)	//Only published nodes, change condition as it suits you
+				->extend('PagerDefault') 	//Pager Extender
+					->limit(50)				//50 results per page
+				->extend('TableSort')		//Sorting Extender
+					->orderByHeader($header)//Field to sort on is picked from $header
+				->fields ('n', array (
+					'nid',
+					'title',
+					'type',
+					'created',
+					'status',
+				));
+				
+$html = theme('table', 
+			array(
+				'header' => $header,
+				'rows'=>$rows,
+				//'caption' => 'Creating Drupal 7 style tables',	//Optional Caption for the table
+				'sticky' => TRUE,						//Optional to indicate whether the table headers should be sticky
+				'empty' => 'No nodes created...',		//Optional empty text for the table if resultset is empty
+			)
+		);*/
+	
+	$form['submissions_sort'][] = array(
+		'name' => array(
+			'#markup' => $text,
+		),
+	);
+	
+  $form['submissions_sort']['#tree'] = TRUE;
+  /*$result = nylon_organize_submissions_page_get_data();
+  foreach ($result as $item) {
+    $form['submissions_sort'][$item->id] = array(
+      'name' => array(
+        '#type' => 'textfield',
+        '#default_value' => $item->name,
+        '#size' => 20,
+        '#maxlength' => 255,
+      ),
+      'pub_nid' => array(
+        '#type' => 'hidden',
+        '#default_value' => $item->pub_nid,
+      ),
+      'pub_art_nid' => array(
+        '#type' => 'hidden',
+        '#default_value' => $item->pub_art_nid,
+				'#attributes' => array(
+					'id' => 'edit-pub-chaps-arts-sort-'.$item->id.'-pub-art-nid',
+				),
+      ),
+      'pub_art_title' => array(
+        '#type' => 'textfield',
+        '#default_value' => $item->pub_art_title,
+        '#size' => 20,
+        '#maxlength' => 255,
+				'#autocomplete_path' => 'pub_article/autocomplete',
+      ),
+      'id' => array(
+        '#type' => 'hidden',
+        '#default_value' => $item->id,
+      ),
+      'pid' => array(
+        '#type' => 'hidden',
+        '#default_value' => $item->pid,
+      ),
+      'weight' => array(
+        '#type' => 'weight',
+        '#title' => t('Weight'),
+        '#default_value' => $item->weight,
+        '#delta' => 100,
+        '#title_display' => 'invisible',
+      ),
+      'depth' => array(
+        '#type' => 'hidden',
+        '#value' => $item->depth,
+      ),
+    );
+  }*/
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array('#type' => 'submit', '#value' => t('Save Changes'));
+  // Adds "Add another row" button
+  /*$form['add_row'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add another item'),
+  );*/
+  return $form;
+}
+
+/* Omit nodes in node noindex table from also being indexed in the Drupal search engine. */
+function nylon_hooks_query_alter(&$query) {
+  $is_search = FALSE;
+  foreach ($query->getTables() as $table) {
+    if ($table['table'] == 'search_index') {
+      $is_search = TRUE;
+    }
+  }
+  if ($is_search) {
+	$get_noindexed = db_query("SELECT nid FROM {node_noindex} GROUP BY nid");
+	$noindx = '';
+	foreach($get_noindexed as $nind){
+	  $noindx[$nind->nid] = '1';
+	}
+	if($noindx!=''){
+		$query->condition('node.nid', array_keys($noindx), 'NOT IN');
+    }
+	//$query->condition('n.type', 'feed', '<>');
+	//watchdog('noindex check search', '<pre>'.print_r($query, true).'</pre>');
+  }
+}
+
+/* redirect anonymous users from nodes in the noindex table */
+function nylon_hooks_node_view($node, $view_mode, $langcode){
+
+	global $base_url;
+	$current_url = $base_url . '/' . current_path();
+	watchdog('current url', '<pre>'.print_r($current_url, true).'</pre>');
+
+	/**
+	 * SSO Redirections on entry from Okta
+	 */
+	global $_simplesamlphp_auth_as;
+	
+	if(is_object($_simplesamlphp_auth_as)){
+	
+		if (!$_simplesamlphp_auth_as->isAuthenticated()) {
+			//drupal_set_message("You should NOT have been redirected", "status");
+		} elseif($_simplesamlphp_auth_as->isAuthenticated()){
+			if(
+			isset($_SERVER['HTTP_REFERER']) && 
+			strpos($_SERVER['HTTP_REFERER'], 'amalgamated.okta.com')!==false && 
+			isset($_SERVER['REQUEST_URI']) && 
+			$_SERVER['REQUEST_URI']!='/aim'
+			){
+				//$_SERVER['HTTP_REFERER'] = 'https://amalgamated.okta.com'; 
+				watchdog('SSO redirection', 'true');
+				//drupal_goto('ab-sso/sg-account-verify');
+				drupal_goto('aim');
+			}
+			//drupal_set_message("You should have been redirected<br><pre>".print_r($_SERVER, true)."</pre>", "status");
+		}	
+	}
+
+	//watchdog('noindex check', '<pre>'.print_r($node, true).'</pre>');
+	if(isset($node->noindex) && $node->noindex=='1'){
+		global $user;
+		//watchdog('noindex check user', '<pre>'.print_r($user, true).'</pre>');
+		if(isset($user->roles[1])){
+			drupal_goto('', array(), 302);
+		}
+	}
+	
+	//if($node->nid == 4){
+		//$node->content['#attached']['js'][] = array(
+			//'type' => 'file',
+			//'data' => 'https://amalgamated.okta.com/js/sdk/okta-sign-in-1.0.2.min.js'
+		//);
+		//drupal_add_js('https://amalgamated.okta.com/js/sdk/okta-sign-in-1.0.2.min.js','external');
+	//}
+	
+	if(isset($node->type) && $node->type=='petition' && $view_mode=='full'){
+		//watchdog('node obj', '<pre>'.print_r($node, true).'</pre>');
+		$node->content['field_s3_main_title'][0]['#prefix'] = '<p><a name="infographic1"></a></p><p>&nbsp;</p>';
+		$node->content['field_s2_main_title'][0]['#prefix'] = '<p><a name="petition"></a></p><p>&nbsp;</p>';
+		if(isset($_REQUEST['sid']) && $_REQUEST['sid']!=''){
+			$node->content['field_s2_main_title'][0]['#prefix'] = '<p><a name="thankyou"></a></p><p>&nbsp;</p>';
+			$node->content['field_s2_main_title'][0]['#markup'] = 'Thank you!';
+			$node->content['field_petition_form'][0]['#field_type'] = 'text_with_summary';
+			$node->content['field_petition_form'][0]['#markup'] = '
+			<div class="panel rounded with-gray-border">
+				<p><h3>Thanks for signing the petition!</h3><br>Now amplify your call to #RaiseTheWage by sharing this petition with your family and friends.</p>
+				<p>
+					<div class="petition-share-blk">
+						<div class="sharethis-wrapper">
+							<span st_url="'.$current_url.'" st_title="'.$node->title.'" class="st_facebook_custom" displayText="facebook"></span>
+							<span st_url="'.$current_url.'" st_title="'.$node->title.'" class="st_twitter_custom" st_via="AmalgamatedBank" st_username="AmalgamatedBank" displayText="twitter"></span>
+							<span st_url="'.$current_url.'" st_title="'.$node->title.'" class="st_email_custom" displayText="email"></span>
+						</div>
+					</div>
+				</p>
+			</div>';
+		}
+		if(isset($node->content['body'][0]['#markup']) && $node->content['body'][0]['#markup']!=''){
+			$block = module_invoke('sharethis', 'block_view', 'sharethis_block');
+			$share_blk = $block['content'];
+			for($x=0; $x<20; $x++){
+				if(isset($node->content['body'][$x]['#markup'])){
+					$node->content['body'][$x]['#markup'] = $node->content['body'][$x]['#markup'].'<div class="petition-share-blk">'.$share_blk.'</div>';
+				}
+			}
+			//watchdog('node obj aft', '<pre>'.print_r($node, true).'</pre>');
+		}
+	}
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function nylon_hooks_block_info() {
+  $blocks = array();
+  $blocks['petition_stories'] = array(
+    'info' => t('Petition Stories'),
+  );
+  $blocks['ab_sso_block'] = array(
+    'info' => t('AB Okta SSO Form'),
+  );
+  
+  return $blocks;
+}
+/**
+ * Implements hook_block_view().
+ */
+function nylon_hooks_block_view($delta='') {
+  $block = array();
+  
+  switch($delta) {
+    case 'petition_stories' :
+      $block['content'] = petition_stories_view();
+      break;
+    case 'ab_sso_block' :
+      $block['content'] = ab_sso_block_view();
+      break;
+  }
+  
+  return $block;
+}
+
+/**
+ * Custom function to assemble renderable array for block content.
+ * Returns a renderable array with the block content.
+ * @return
+ *   returns a renderable array of block content.
+ */
+function petition_stories_view() {
+  $block = array();
+	$text = '';
+	$node = menu_get_object();
+	if(isset($node->nid) && isset($node->field_petition_form['und'][0]['target_id']) && $node->field_petition_form['und'][0]['target_id']!=''){
+		//watchdog('block node', '<pre>'.print_r($node, true).'</pre>');
+		$get_stories = db_query("SELECT a.sid, b.cid, b.form_key, c.data FROM webform_submissions a, webform_component b, webform_submitted_data c WHERE a.nid=:nid AND a.sid=c.sid AND a.nid=b.nid AND b.cid=c.cid ORDER BY sid ASC", array(':nid' => $node->field_petition_form['und'][0]['target_id']));
+		foreach($get_stories as $story){
+			if($story->form_key=='state'){
+				$text_content[$story->sid][$story->form_key] = $story->data;
+			}
+			if($story->form_key=='first_name' || $story->form_key=='last_name_or_initial' || $story->form_key=='city' || $story->form_key=='why_i_believe_america_needs_a_raise'){
+				$text_content[$story->sid][$story->form_key] = decrypt($story->data, array('base64' => TRUE));
+			}
+			if($story->form_key=='display_story'){
+				$text_content[$story->sid][$story->form_key] = $story->data;
+			}
+			if($story->form_key=='sort_order'){
+				$text_content[$story->sid]['order'] = $story->data;
+			}
+		}
+		usort($text_content, function($a, $b) {
+			if(!isset($a['order']) || !isset($b['order'])){
+			//watchdog('sort order a', '<pre>'.print_r($a, true).'</pre>');
+			//watchdog('sort order b', '<pre>'.print_r($b, true).'</pre>');
+			} else if(isset($a['order']) && isset($b['order'])) {
+				return $a['order'] - $b['order'];
+			}
+		});
+		
+		
+		// ********  Petition comment pagination and display ********
+		$count = '0';
+		$page = '0';
+		$pages = '';
+		if(!isset($_REQUEST['pid'])){
+			$_REQUEST['pid'] = '1';
+		}
+		
+		$total_count = sizeof($text_content); 
+		$current_count = '0';
+		$total_display_count = '0';
+		
+		foreach($text_content as $text_cnt){
+			//watchdog('block node build', '<pre>'.print_r($text_cnt, true).'</pre>');
+			$current_count = ($current_count + 1);
+			
+			if((isset($text_cnt['display_story']) && $text_cnt['display_story']=='1') || ($current_count == $total_count)){
+				$total_display_count = ($total_display_count + 1);
+				$count = ($count + 1);
+				if(($count=='1') AND ($_REQUEST['pid'] == ($page + 1))){
+					$pages .= '<a name="storytopper"></a>';
+				}
+				if(($count=='10') || ($current_count == $total_count)){
+					$page = ($page + 1);
+					$text .= '
+					<div class="panel rounded with-gray-border">
+						<p>'.$text_cnt['why_i_believe_america_needs_a_raise'].'</p>
+						<p><b>'.$text_cnt['first_name'].' '.$text_cnt['last_name_or_initial'][0].', '.$text_cnt['city'].', '.$text_cnt['state'].'</b></p>
+					</div>';
+					$pages .= '<div  style="'.((isset($_REQUEST['pid']) && $_REQUEST['pid']==$page)?'display: sblock;':'display: none;').'">'.$text.'</div>';
+					$text = '';
+					$count = '0';
+					$pager[$page] = $page;
+				} else {
+				$text .= '
+				<div class="panel rounded with-gray-border">
+					<p>'.$text_cnt['why_i_believe_america_needs_a_raise'].'</p>
+					<p><b>'.$text_cnt['first_name'].' '.$text_cnt['last_name_or_initial'][0].', '.$text_cnt['city'].', '.$text_cnt['state'].'</b></p>
+				</div>';
+				}
+			}
+		}
+	}
+	$pager_bar = '<div class="text-center"><ul class="pagination">';
+	
+	
+	// ****** Start new code to set start page cur_min and cur_max *****
+	if(!isset($_REQUEST['cur_page'])){
+		$_REQUEST['cur_page'] = 1;
+	}
+	if(!isset($start_page)){
+		$start_page = 1;
+	}
+	
+	$num_display = 10;
+	$half_num_display = $num_display / 2;
+	$total_records = $total_display_count;
+	$total_pages = ceil($total_records / $num_display);
+	
+	//Set the current max and min if they are not yet defined.  Passing the current max and min through the URL
+	if(!isset($_REQUEST['cur_max']) || !isset($_REQUEST['cur_min'])) {
+		$_REQUEST['cur_min'] = 1;
+		//If total_pages greater than or equal to num_display
+		if($total_pages >= $num_display){
+			$_REQUEST['cur_max'] = $num_display;
+		} else {
+			$_REQUEST['cur_max'] = $total_pages;
+		} // End if total_pages greater than or equal to num_display
+	} //End if Current max or min is not defined 
+	
+	
+	// *** If the cur_page equals the cur_max, we need to determine how much to shift the pages to the right ***
+	if($_REQUEST['cur_page'] == $_REQUEST['cur_max']){
+		//Get the number of pages still to display
+		$pages_left = $total_pages - $_REQUEST['cur_page'];
+		
+		//If pages_left is 5 or more, start the pagination at cur_page - 4 assuming paginating by 10
+		if($pages_left >= $half_num_display){
+			$start_page = $_REQUEST['cur_page'] - ($half_num_display - 1);
+		} elseif($pages_left < $half_num_display) {
+			// If the pages left is less than 5, start the pagination at the difference between the total_pages - URL.cur_page + 1
+			$start_page = $_REQUEST['cur_min'] + $pages_left;
+		}// End if pages_left is 5 or more
+		
+		//Set the new URL.cur_min and URL.cur_max 
+		$_REQUEST['cur_min'] = $start_page;
+		// If total_pages greater than or equal to num_display
+		if($total_pages >= $num_display){
+			$_REQUEST['cur_max'] = $start_page + ($num_display - 1);
+		} else {
+			$_REQUEST['cur_max'] = $_REQUEST['cur_max'];
+		} // End if total_pages greater than or equal to num_display
+	} //End if cur_page equals the cur_max 
+	
+	
+	// *** If the cur_page equals the cur_min, we need to determine how much to shift the pages to the left ***
+	if(($_REQUEST['cur_page'] == $_REQUEST['cur_min']) && ($_REQUEST['cur_page'] != 1)) {
+		// If URL.cur_min is greater than the middle page
+		if($_REQUEST['cur_min'] > $half_num_display){
+			$start_page = $_REQUEST['cur_min'] - $half_num_display;
+			$_REQUEST['cur_min'] = $start_page;
+			$_REQUEST['cur_max'] = $start_page + ($num_display -1);
+		} else {
+			$start_page = 1;
+			$_REQUEST['cur_min'] = $start_page;
+			$_REQUEST['cur_max'] = $num_display;
+		}// End if URL.cur_min greater than half the number of records to display
+		
+	} // End if URL.cur_page equals the URL.cur_min and the current page is not equal to 1
+	
+	// ****** End new code to set start page cur_min and cur_max *****
+	
+	//Previous button
+	$previous_pid = $_REQUEST['pid'] - 1;
+	 
+	//Previous button
+	if($previous_pid != '0') {
+		$pager_bar .= '<li><a href="/raisethewage/?pid='.$previous_pid.'&cur_page='.$previous_pid.'&cur_min='.$_REQUEST['cur_min'].'&cur_max='.$_REQUEST['cur_max'].'#storytopper">&lsaquo; previous</a></li>';
+	}
+	
+	//Show if there are lower pages hidden 
+	if($_REQUEST['cur_min'] != 1){
+		$pager_bar .= '<li class="pager-ellipsis disabled"><span>...</span></li>';
+	}
+		
+	for ($n = $_REQUEST['cur_min']; $n <= $_REQUEST['cur_max']; $n++) {
+	  $pager_bar .= '<li id="pager-'.$n.'" class="'.(($_REQUEST['cur_page'] == $n)?'active':'').'"><a href="/raisethewage/?pid='.$n.'&cur_page='.$n.'&cur_min='.$_REQUEST['cur_min'].'&cur_max='.$_REQUEST['cur_max'].'#storytopper">'.$n.'</a></li>';
+	}
+	
+	//Show if there are higher pages hidden 
+	if($_REQUEST['cur_max'] < $total_pages){
+		$pager_bar .= '<li class="pager-ellipsis disabled"><span>...</span></li>';
+	}
+	//Next button
+	$next_pid = $_REQUEST['pid'] + 1;
+	if($_REQUEST['pid'] != $page) {
+		$pager_bar .= '<li><a href="/raisethewage/?pid='.$next_pid.'&cur_page='.$next_pid.'&cur_min='.$_REQUEST['cur_min'].'&cur_max='.$_REQUEST['cur_max'].'#storytopper">next &rsaquo;</a></li>';
+	}
+	
+	$pager_bar .= '</div></ul>';
+	$final_html = $pages.$pager_bar;
+	/*global $user;
+	if(!in_array('administrator', $user->roles)){
+		$text = '';
+	}*/
+  // Block output in HTML with div wrapper
+  $block = array(
+    'message' => array(
+      '#type' => 'markup',
+      '#markup' => $final_html,
+      '#suffix' => '',
+    ),
+  );
+  return $block;
+}
+
+function ab_sso_block_view() {
+  $block = array();
+	$output = '';
+	$node = menu_get_object();
+
+	global $user;
+		
+	drupal_add_js('https://amalgamated.okta.com/js/sdk/okta-sign-in-1.0.2.min.js','external');
+	drupal_add_css('https://www.amalgamatedbank.com/sites/all/themes/amalgamated_reborn/css/okta-sign-in-1.0.2.min.css','external');
+	drupal_add_css('https://amalgamated.okta.com/css/login/okta-theme.css','external');
+		
+	$output .= '
+	<style>
+		/*body {
+			background-image: url(\'https://farm9.staticflickr.com/8332/8451032652_b2bf0bdadc_h.jpg\');
+			background-repeat: no-repeat;
+			background-position: center center fixed;
+			-webkit-background-size: cover;
+			-moz-background-size: cover;
+			-o-background-size: cover;
+			background-size: cover;
+		}*/
+	
+		#okta-login-container {
+			margin: 20px !important;
+			margin-top: -20px !important;
+			padding: 0px !important;
+			vertical-align: top !important;
+		}
+		
+		#block-nylon-hooks-ab-sso-block div:nth-child(1) {
+			margin-top: 0px !important;
+			padding-top: 0px !important;
+			vertical-align: top !important;
+		}
+	
+		#container #okta-login-container .button {
+			color: #ffffff;
+			background-color: #3a3f44;
+			border-color: #3a3f44;
+			background-image: -webkit-linear-gradient(#484e55, #3a3f44 60%, #313539);
+			background-image: -o-linear-gradient(#484e55, #3a3f44 60%, #313539);
+			background-image: -webkit-gradient(linear, left top, left bottom, from(#484e55), color-stop(60%, #3a3f44), to(#313539));
+			background-image: linear-gradient(#484e55, #3a3f44 60%, #313539);
+			background-repeat: no-repeat;
+			filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=\'#ff484e55\', endColorstr=\'#ff313539\', GradientType=0);
+			-webkit-filter: none;
+			filter: none;
+		}
+		
+		#okta-login-container .auth-container {
+			background-color: #ffffff !important;
+		}
+		
+		#okta-login-container .okta-form-title {
+			display: none !important;
+			visibility: hidden !important;
+		}
+		
+		.okta-sign-in-header .auth-org-logo {
+			padding-top: 20px !important;
+		}
+		
+	</style>
+	
+	<!-- Render the login widget here -->
+  <div id="okta-login-container"></div>
+
+  <!-- Script to init the widget -->
+  <script>
+    var baseUrl = \'https://amalgamated.okta.com\';
+    var oktaSignIn = new OktaSignIn({
+			baseUrl: baseUrl,
+			logo: \'https://www.amalgamatedbank.com/sites/all/themes/amalgamated_reborn/images/AMA-Trust-Web.gif\',
+			features: {
+				securityImage: false,
+				rememberMe: true,
+				smsRecovery: false,
+				selfServiceUnlock: true
+			},
+		});
+    oktaSignIn.renderEl(
+      { el: \'#okta-login-container\' },
+      function (res) {
+        if (res.status === \'SUCCESS\') {
+          console.log(\'User %s successfully authenticated %o\', res.user.profile.login, res.user);
+          res.session.setCookieAndRedirect(\'https://www.amalgamatedbank.com/saml_login\');
+        }
+      }
+    );
+  </script>
+	';
+	
+  global $_simplesamlphp_auth_as;
+	
+	if(is_object($_simplesamlphp_auth_as)){
+	if (!$_simplesamlphp_auth_as->isAuthenticated()) {
+		//$output .= 'User NOT SAML authenticated:<br><pre>'.print_r($user, true).'</pre>';
+		//$output .= "<p>".$_SERVER['HTTP_HOST']."</p>";
+	} elseif($_simplesamlphp_auth_as->isAuthenticated()){
+		//$output .= 'User IS SAML authenticated:<br><pre>'.print_r($user, true).'</pre>';
+		$output = 'Hello - you are already logged into trust web. Please refresh this page if you are not redirected shortly.';
+			
+  		global $_simplesamlphp_auth_saml_attributes;
+			$session = SimpleSAML_Session::getSessionFromRequest();
+			$session_piece_2 = $session->getAuthData('default-sp', 'saml:sp:SessionIndex');
+			$get_saml_response = db_query("SELECT _global_office_value FROM simpleSAMLphp_assertstore WHERE _key=:key", array(':key' => $session_piece_2));
+			if(isset($_SERVER['HTTP_HOST']) && $_SERVER['HTTP_HOST']=='www.amalgamatedbank.com'){
+				$output.= "<form name='frm' action='https://AmalgamatedInvestmentManagementACS.infinity.com/CSA_ACS/ABNY/acs/POST.do?ApplicationID=GO&TenantID=abny' method='POST'>";
+			} else {
+				$output.= "<form name='frm' action='https://abnyacs.infinity.com/CSA_ACS/ABNY/acs/POST.do?ApplicationID=GO&TenantID=abny' method='POST'>";
+			}
+			foreach ($get_saml_response as $saml_response) {
+				$output .= "<input type='hidden' name='SAMLResponse' value='".$saml_response->_global_office_value."'>";
+			}
+			$output .= "</form>";
+			watchdog('SAML Form Post', '<pre>'.print_r($output, true).'</pre>');
+			$output .= "
+			<script language='javascript'>
+			document.forms['frm'].submit();
+			//return false;
+			</script>";
+	}
+	}
+
+  // Block output in HTML with div wrapper
+  $block = array(
+    'message' => array(
+      '#type' => 'markup',
+      '#markup' => $output,
+      '#suffix' => '',
+    ),
+  );
+  return $block;
+}
+
+function array_to_xml( $data, &$xml_data ) {
+    foreach( $data as $key => $value ) {
+        if( is_array($value) ) {
+            if( is_numeric($key) ){
+                $key = 'item'.$key; //dealing with <0/>..<n/> issues
+            }
+            $subnode = $xml_data->addChild($key);
+            array_to_xml($value, $subnode);
+        } else {
+            if( is_numeric($key) ){
+                $key = 'item'.$key; //dealing with <0/>..<n/> issues
+            }
+            $xml_data->addChild("$key",htmlspecialchars("$value"));
+        }
+     }
+} 

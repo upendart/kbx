@@ -1,0 +1,29 @@
+/******
+ * Amalgamated Reborn Theme - Overrides
+ *
+ * Copyright 2014 
+ * Created by: Joel Bousley
+ * URL: http://www.spartansystems.co
+ * Overrides some of the default settings for the base theme.
+ *
+******/
+
+.segement-landing-page .nav-tabs,
+#product-landing .nav-tabs {
+    margin-left: 15px;
+}
+
+/*** Drupal Admin Overrides ***/
+#content-before .region-content-before {
+    display: none !important;
+}
+
+.description {
+    background-color: #d9edf7;
+    border-color: #bce8f1;
+    color: #31708f;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}

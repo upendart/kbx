@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the AB Date Types feature.
+ */
+
+include_once 'ab_date_types.features.inc';

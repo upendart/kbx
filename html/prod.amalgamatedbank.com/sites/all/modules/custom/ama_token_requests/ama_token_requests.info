@@ -1,0 +1,10 @@
+#name = Amalgamated Security Tokens
+name = AMA Token Requests
+description = Allows the administration of security tokens.
+
+version = "7.x-1.0"
+core = "7.x"
+#package = Amalgamated Bank
+package = Nylon Technology
+
+timestamp = 1484667090

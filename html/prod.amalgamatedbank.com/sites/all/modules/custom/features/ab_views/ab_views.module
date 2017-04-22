@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the AB Views feature.
+ */
+
+include_once 'ab_views.features.inc';

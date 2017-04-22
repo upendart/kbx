@@ -1,0 +1,89 @@
+<?php
+
+/**
+ * Implements hook_menu()
+ */
+function ama_give_back_savings_signup_menu() {
+	$items = array();
+	 
+	// Admin report:
+	$items["admin/reports/ama_give_back_savings_signup"] = array( 
+		'title'				=> t("AMA Give Back Savings Signup"),
+		'description'		=> t("Exporting user Give Back Savings signups"),
+		'page callback'		=> t("ama_give_back_savings_signup_report"),
+		//'access callback'	=> array("edit content"),
+		'access arguments' 	=> array("access administration pages"),
+		'type'				=> MENU_CALLBACK,
+	); 
+	
+	return $items;
+}
+
+function ama_give_back_savings_signup_report() {
+	
+	ini_set('max_execution_time', 100);
+	
+	// Get user signups
+	$sql = "SELECT 
+				email,
+				charity_name,
+				charity_key,
+				date_created,
+				url_query_string
+			FROM 
+				{custom_give_back_savings_signup} AS gbs
+			ORDER BY 
+				gbs.date_created ASC";
+	$results = db_query($sql);		
+
+	// Generate CSV 
+  	// header('Content-Type: text/csv; charset=utf-8');
+  	header("Cache-Control: public");
+  	header("Content-Type: application/octet-stream");
+  	header("Cache-Control: no-store, no-cache, must-revalidate");
+  	header("Cache-Control: post-check=0, pre-check=0");	
+	header('Content-Disposition: attachment; filename="ama_give_back_savings_signup_report.csv"'); 
+	header("Content-Transfer-Encoding: binary");
+	
+	// Open file to write	
+    $output = fopen("php://output", "w"); 
+	
+	// Set encryption key path
+	if(get_environment() == 'local'){
+	   	$key_path = realpath(__DIR__ . '/../..') . '\enc_key.txt';
+	   }
+	   elseif(get_environment() == 'staging') {
+	   	$key_path = realpath(__DIR__ . '/../..') . '\enc_key.txt';
+	   }
+	   elseif(get_environment() == 'production') {
+	   	$key_path = realpath(__DIR__ . '/../../..') . '\enc_key.txt';
+	   }
+	
+	$encryption_key = file_get_contents($key_path);
+	
+	// column headers:
+	fputcsv($output, array(	t("User Email"), t("Charity"), t("Charity Key"), t("Date Created"), t("URL Query String"),) );
+	
+	// Output data 
+	foreach ($results as $row) {
+	
+		//decrypt email address
+		$decrypted_email = mc_decrypt($row->email, encryption_key);
+	
+		fputcsv($output, array($decrypted_email, $row->charity_name, $row->charity_key, $row->date_created, $row->url_query_string,));
+    }
+	// END OF CSV SETTINGS	
+	
+	
+	//fputcsv($output, array('test', 'emailTo', 'emailFrom', 'uid', 'message', ));
+	
+	// close file
+    fclose($output);
+	//END: CSV  
+	
+	// Tracked in logs:
+	watchdog("Custom Report", "AMA Give Back Savings Signup Report");
+	
+ 	// Exit the script
+  	drupal_exit();	
+}
